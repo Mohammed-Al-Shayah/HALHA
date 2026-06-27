@@ -37,12 +37,12 @@ export default function App() {
     setStores((prev) => [newStore, ...prev]);
   };
 
-  // Toggle store active/suspended status (Platform Admin Action)
+  // Toggle store active/disabled status (Platform Admin Action)
   const handleToggleStoreStatus = (storeId: string) => {
     setStores((prev) =>
       prev.map((s) =>
         s.id === storeId
-          ? { ...s, status: s.status === 'active' ? 'suspended' : 'active' }
+          ? { ...s, status: s.status === 'active' ? 'disabled' : 'active' }
           : s
       )
     );

@@ -50,7 +50,6 @@ export default function CustomerPortal({
   const [selectedItemName, setSelectedItemName] = useState('بن قهوة مختصة - هيرلوم إثيوبي مغسول (٢٥٠ غرام)');
   const [selectedItemPrice, setSelectedItemPrice] = useState(68);
   const [returnReason, setReturnReason] = useState('البن منسكب ومكشوف داخل صندوق التوصيل الكرتوني عند استلامه.');
-  const [iban, setIban] = useState('SA');
   const [sizeDesired, setSizeDesired] = useState('56');
   const [complaintType, setComplaintType] = useState('تأخر توصيل الشحنة');
   const [customerMsgInput, setCustomerMsgInput] = useState('');
@@ -95,7 +94,7 @@ export default function CustomerPortal({
       reason: returnReason,
     };
 
-    const typeDesc = requestType === 'return' ? 'استرجاع مالي للسلعة' : requestType === 'exchange' ? 'استبدال المنتج' : `شكوى وبلاغ (${complaintType})`;
+    const typeDesc = requestType === 'return' ? 'استرجاع السلعة' : requestType === 'exchange' ? 'استبدال المنتج' : `شكوى وبلاغ (${complaintType})`;
 
     const newRequest: CustomerRequest = {
       id: generatedId,
@@ -105,7 +104,7 @@ export default function CustomerPortal({
       customerName: 'ضيف المتجر الكريم',
       customerPhone: phoneNumber || '966500000000',
       customerEmail: 'customer@test.sa',
-      customerIBAN: requestType === 'return' ? iban : undefined,
+      customerIBAN: undefined,
       type: requestType,
       items: [newReqItem],
       status: 'new',
@@ -415,8 +414,8 @@ export default function CustomerPortal({
                   >
                     <span className="p-2 bg-amber-50 text-amber-700 rounded-xl mt-0.5"><CreditCard className="w-4 h-4" /></span>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-stone-900">استرجاع مالي وتحويل للحساب البنكي</h4>
-                      <p className="text-[10px] text-stone-400">لطلب استرجاع قيمة سلعة معينة مع إعادة قيمة الطلب لحساب الآيبان البنكي الخاص بك.</p>
+                      <h4 className="text-xs font-bold text-stone-900">استرجاع السلعة</h4>
+                      <p className="text-[10px] text-stone-400">لطلب إرجاع السلعة المشتراة واسترداد قيمتها وفقاً لسياسة المتجر.</p>
                     </div>
                   </button>
 
@@ -505,22 +504,7 @@ export default function CustomerPortal({
                   />
                 </div>
 
-                {/* Contextual field for Return (IBAN) */}
-                {requestType === 'return' && (
-                  <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">رقم الآيبان البنكي للتعويض المالي (IBAN)</label>
-                    <input
-                      type="text"
-                      required
-                      value={iban}
-                      onChange={(e) => setIban(e.target.value)}
-                      placeholder="SAxxxxxxxxxxxxxxxxxxxxxxxx"
-                      className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                      dir="ltr"
-                    />
-                    <p className="text-[9px] text-stone-400 mt-1">SAxxxxxxxxxxxxxxxxxxxxxxxx</p>
-                  </div>
-                )}
+
 
                 {requestType === 'exchange' && (
                   /* Size selection for exchange */
@@ -572,11 +556,8 @@ export default function CustomerPortal({
                   <p className="text-base font-bold font-mono text-teal-700 bg-teal-50 py-1 px-3 rounded-lg w-fit mx-auto border border-teal-100">{justSubmittedId}</p>
                 </div>
 
-                <div className="bg-stone-50 border border-stone-200/50 p-4 rounded-xl text-right text-[11px] space-y-2 leading-relaxed text-stone-600">
-                  <h4 className="font-bold text-stone-800">الخطوات التالية المتبقية:</h4>
-                  <p>١. ستقوم إدارة المتجر بمراجعة صور ومبررات طلبك خلال أقل من ٢٤ ساعة.</p>
-                  <p>٢. فور القبول، سنرسل بوليصة شحن مجانية لمرتجعك عبر رسالة نصية SMS.</p>
-                  <p>٣. بمجرد وصول الشحنة وفحصها بالمستودع، سيتم تفعيل حوالتك البنكية فوراً.</p>
+                <div className="bg-stone-50 border border-stone-200/50 p-4 rounded-xl text-center text-xs leading-relaxed text-stone-600">
+                  <p className="font-bold text-stone-800">سيقوم المتجر بمراجعة طلبك وإبلاغك بالخطوات التالية حسب سياسة المتجر.</p>
                 </div>
               </div>
 

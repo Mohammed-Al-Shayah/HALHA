@@ -553,6 +553,7 @@ export default function MerchantDashboard({
   const escalatedRequests = requests.filter(r => r.status === 'escalated_to_owner');
   const pendingWarehouseRequests = requests.filter(r => r.status === 'approved');
   const warehouseInspectedRequests = requests.filter(r => r.status === 'received');
+  const warehouseRequests = requests.filter(r => r.status === 'approved' || r.status === 'received');
   const resolvedRequests = requests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status));
 
   const totalRefundedValue = requests
@@ -844,183 +845,196 @@ export default function MerchantDashboard({
 
             {/* ROLE = SUPPORT ACTIONS */}
             {role === 'support' && ['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status) && (
-                <div className="space-y-4 pt-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1">ملاحظات داخلية (تضاف لسجل فريق العمل)</label>
-                      <textarea
-                        value={actionNotes}
-                        onChange={(e) => setActionNotes(e.target.value)}
-                        placeholder="اكتب ملاحظة فنية لمساعدة زملائك في المستودع أو الإدارة..."
-                        className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1">مبرر رفع وتصعيد الطلب (عند اختيار تصعيد فقط)</label>
-                      <textarea
-                        value={escalationReasonInput}
-                        onChange={(e) => setEscalationReasonInput(e.target.value)}
-                        placeholder="لماذا يحتاج هذا الطلب موافقة استثنائية من مالك المتجر؟"
-                        className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                      />
-                    </div>
+              <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">ملاحظات داخلية (تضاف لسجل فريق العمل)</label>
+                    <textarea
+                      value={actionNotes}
+                      onChange={(e) => setActionNotes(e.target.value)}
+                      placeholder="اكتب ملاحظة فنية لمساعدة زملائك في المستودع أو الإدارة..."
+                      className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
+                    />
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2 pt-2">
-                    {/* Action 1: Approve to send reversal label */}
-                    <button
-                      onClick={() => {
-                        onUpdateRequestStatus(selectedRequest.id, 'approved', {
-                          internalNotes: actionNotes || undefined,
-                        });
-                        setSelectedRequest(null);
-                        setActionNotes('');
-                      }}
-                      className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>الموافقة المبدئية وتوليد بوليصة الشحن</span>
-                    </button>
-
-                    {/* Action 2: Escalate */}
-                    <button
-                      onClick={() => {
-                        if (!escalationReasonInput) {
-                          alert('يرجى كتابة مبرر التصعيد أولاً');
-                          return;
-                        }
-                        onUpdateRequestStatus(selectedRequest.id, 'escalated_to_owner', {
-                          internalNotes: actionNotes || undefined,
-                          escalationReason: escalationReasonInput,
-                        });
-                        setSelectedRequest(null);
-                        setActionNotes('');
-                        setEscalationReasonInput('');
-                      }}
-                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>تصعيد الطلب لصاحب المتجر لإصدار قرار استثنائي</span>
-                    </button>
-
-                    {/* Action 3: Request Info */}
-                    <button
-                      onClick={() => {
-                        const infoDetails = prompt('ما هي المعلومات المطلوبة من العميل؟');
-                        if (infoDetails) {
-                          onUpdateRequestStatus(selectedRequest.id, 'waiting_customer_info', {
-                            internalNotes: actionNotes || undefined,
-                            infoRequestedDetails: infoDetails,
-                          });
-                          setSelectedRequest(null);
-                          setActionNotes('');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                      <span>طلب معلومات إضافية من العميل</span>
-                    </button>
-
-                    {/* Action 4: Reject */}
-                    <button
-                      onClick={() => {
-                        onUpdateRequestStatus(selectedRequest.id, 'rejected', {
-                          internalNotes: actionNotes || undefined,
-                        });
-                        setSelectedRequest(null);
-                        setActionNotes('');
-                      }}
-                      className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
-                    >
-                      رفض الطلب نهائياً
-                    </button>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1">مبرر رفع وتصعيد الطلب (عند اختيار تصعيد فقط)</label>
+                    <textarea
+                      value={escalationReasonInput}
+                      onChange={(e) => setEscalationReasonInput(e.target.value)}
+                      placeholder="لماذا يحتاج هذا الطلب موافقة استثنائية من مالك المتجر؟"
+                      className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
+                    />
                   </div>
                 </div>
-              )}
 
-              {/* ROLE = WAREHOUSE ACTIONS */}
-              {role === 'warehouse' && (selectedRequest.status === 'approved' || selectedRequest.status === 'received') && (
-                <div className="space-y-4 pt-2">
-                  {selectedRequest.status === 'approved' ? (
-                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200/50 space-y-3">
-                      <h5 className="text-xs font-bold text-stone-800">بانتظار استلام الشحنة في المستودع</h5>
-                      <p className="text-[11px] text-stone-500 leading-relaxed">
-                        وصلت السلعة إلى المستودع؟ انقر لتسجيل الاستلام ونقل الحالة للبدء بالفحص الفني والتقييم.
-                      </p>
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  {/* Action 1: Approve to send reversal label */}
+                  <button
+                    onClick={() => {
+                      onUpdateRequestStatus(selectedRequest.id, 'approved', {
+                        internalNotes: actionNotes || undefined,
+                      });
+                      setSelectedRequest(null);
+                      setActionNotes('');
+                    }}
+                    className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>الموافقة المبدئية وتوليد بوليصة الشحن</span>
+                  </button>
+
+                  {/* Action 2: Escalate */}
+                  <button
+                    onClick={() => {
+                      if (!escalationReasonInput) {
+                        alert('يرجى كتابة مبرر التصعيد أولاً');
+                        return;
+                      }
+                      onUpdateRequestStatus(selectedRequest.id, 'escalated_to_owner', {
+                        internalNotes: actionNotes || undefined,
+                        escalationReason: escalationReasonInput,
+                      });
+                      setSelectedRequest(null);
+                      setActionNotes('');
+                      setEscalationReasonInput('');
+                    }}
+                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>تصعيد الطلب لصاحب المتجر لإصدار قرار استثنائي</span>
+                  </button>
+
+                  {/* Action 3: Request Info */}
+                  <button
+                    onClick={() => {
+                      const infoDetails = prompt('ما هي المعلومات المطلوبة من العميل؟');
+                      if (infoDetails) {
+                        onUpdateRequestStatus(selectedRequest.id, 'waiting_customer_info', {
+                          internalNotes: actionNotes || undefined,
+                          infoRequestedDetails: infoDetails,
+                        });
+                        setSelectedRequest(null);
+                        setActionNotes('');
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span>طلب معلومات إضافية من العميل</span>
+                  </button>
+
+                  {/* Action 4: Reject */}
+                  <button
+                    onClick={() => {
+                      onUpdateRequestStatus(selectedRequest.id, 'rejected', {
+                        internalNotes: actionNotes || undefined,
+                      });
+                      setSelectedRequest(null);
+                      setActionNotes('');
+                    }}
+                    className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    رفض الطلب نهائياً
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ROLE = WAREHOUSE ACTIONS */}
+            {role === 'warehouse' && (selectedRequest.status === 'approved' || selectedRequest.status === 'received') && (
+              <div className="space-y-4 pt-2">
+                {selectedRequest.status === 'approved' ? (
+                  <div className="bg-stone-50 p-5 rounded-xl border border-stone-200/50 space-y-3">
+                    <h5 className="text-xs font-bold text-stone-800">بانتظار استلام الشحنة في المستودع</h5>
+                    <p className="text-[11px] text-stone-500 leading-relaxed">
+                      وصلت السلعة إلى المستودع؟ انقر لتسجيل الاستلام ونقل الحالة للبدء بالفحص الفني والتقييم.
+                    </p>
+                    <button
+                      onClick={() => {
+                        onUpdateRequestStatus(selectedRequest.id, 'received', {
+                          internalNotes: 'تم تأكيد وصول واستلام الشحنة العكسية للمستودع، قيد البدء بالفحص.',
+                        });
+                        setSelectedRequest(null);
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <PackageCheck className="w-4 h-4" />
+                      <span>تأكيد استلام الشحنة وبدء الفحص</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/50">
+                    <h5 className="text-xs font-bold text-stone-800 mb-3">تفاصيل التفتيش الفعلي للمرتجع الوارد</h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة التفتيش والسلعة الفعليّة</label>
+                        <select
+                          value={inspectionCondition}
+                          onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
+                          className="w-full px-2 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                        >
+                          <option value="clean_restock">سليم ومغلف - إعادة للمخزن للبيع</option>
+                          <option value="damaged_scrap">تالف بالكامل - إتلاف وشطب</option>
+                          <option value="used_discount">مستعمل خفيف - تصنيف بيع مخفض</option>
+                          <option value="wrong_item">منتج خاطئ مغاير لفاتورة الشراء</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-bold text-stone-700 mb-1">تقرير الفحص وملاحظات المستودع</label>
+                        <input
+                          type="text"
+                          value={inspectionNotes}
+                          onChange={(e) => setInspectionNotes(e.target.value)}
+                          placeholder="اكتب تفاصيل حالة المنتج، العيوب، أو أي ملاحظات فنية..."
+                          className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-stone-200/50">
+                      {/* Clear Action: Return to Support for Review */}
                       <button
                         onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'received', {
-                            internalNotes: 'تم تأكيد وصول واستلام الشحنة العكسية للمستودع، قيد البدء بالفحص.',
+                          onUpdateRequestStatus(selectedRequest.id, 'under_review', {
+                            internalNotes: actionNotes ? `طلب مراجعة من المستودع: ${actionNotes}` : 'إرجاع للدعم الفني بواسطة أخصائي المستودع لمراجعة الطلب.',
                           });
                           setSelectedRequest(null);
                         }}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
                       >
-                        <PackageCheck className="w-4 h-4" />
-                        <span>تأكيد استلام الشحنة وبدء الفحص</span>
+                        <span>إرجاع للدعم للمراجعة</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (!inspectionNotes) {
+                            alert('يرجى كتابة ملاحظات الفحص أولاً');
+                            return;
+                          }
+                          onUpdateRequestStatus(selectedRequest.id, 'received', {
+                            internalNotes: `تم الفحص الفني: ${inspectionNotes}`,
+                            inspection: {
+                              condition: inspectionCondition,
+                              notes: inspectionNotes,
+                              inspectedBy: 'أخصائي المستودع',
+                              inspectedAt: new Date().toISOString(),
+                            },
+                          });
+                          setSelectedRequest(null);
+                          setInspectionNotes('');
+                        }}
+                        className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>تأكيد وحفظ نتيجة الفحص (دون إكمال الطلب)</span>
                       </button>
                     </div>
-                  ) : (
-                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/50">
-                      <h5 className="text-xs font-bold text-stone-800 mb-3">تفاصيل التفتيش الفعلي للمرتجع الوارد</h5>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة التفتيش والسلعة الفعليّة</label>
-                          <select
-                            value={inspectionCondition}
-                            onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
-                            className="w-full px-2 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                          >
-                            <option value="clean_restock">سليم ومغلف - إعادة للمخزن للبيع</option>
-                            <option value="damaged_scrap">تالف بالكامل - إتلاف وشطب</option>
-                            <option value="used_discount">مستعمل خفيف - تصنيف بيع مخفض</option>
-                            <option value="wrong_item">منتج خاطئ مغاير لفاتورة الشراء</option>
-                          </select>
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-[11px] font-bold text-stone-700 mb-1">تقرير الفحص وملاحظات المستودع</label>
-                          <input
-                            type="text"
-                            value={inspectionNotes}
-                            onChange={(e) => setInspectionNotes(e.target.value)}
-                            placeholder="اكتب تفاصيل حالة المنتج، العيوب، أو أي ملاحظات فنية..."
-                            className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-stone-200/50">
-                        <button
-                          onClick={() => {
-                            if (!inspectionNotes) {
-                              alert('يرجى كتابة ملاحظات الفحص أولاً');
-                              return;
-                            }
-                            onUpdateRequestStatus(selectedRequest.id, 'received', {
-                              internalNotes: `تم الفحص الفني: ${inspectionNotes}`,
-                              inspection: {
-                                condition: inspectionCondition,
-                                notes: inspectionNotes,
-                                inspectedBy: 'أخصائي المستودع',
-                                inspectedAt: new Date().toISOString(),
-                              },
-                            });
-                            setSelectedRequest(null);
-                            setInspectionNotes('');
-                          }}
-                          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>تأكيد الفحص ونقل الحالة للمالك</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+            )}
 
               {/* ROLE = OWNER ACTIONS */}
               {role === 'owner' && (['escalated_to_owner', 'received', 'under_review', 'new'].includes(selectedRequest.status)) && (
@@ -1245,12 +1259,15 @@ export default function MerchantDashboard({
                           className="px-2 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
                         >
                           <option value="all">كل الحالات الجارية والمكتملة</option>
-                          <option value="pending_support">قيد المراجعة - الدعم</option>
-                          <option value="escalated_owner">مرفوع لصاحب المتجر</option>
-                          <option value="pending_warehouse">بانتظار شحن المستودع</option>
-                          <option value="warehouse_inspected">تم الفحص والتأكيد</option>
-                          <option value="resolved_approved">مقبول ومكتمل</option>
-                          <option value="resolved_rejected">مرفوض ومغلق</option>
+                          <option value="new">جديد</option>
+                          <option value="under_review">قيد المراجعة</option>
+                          <option value="waiting_customer_info">بانتظار العميل</option>
+                          <option value="escalated_to_owner">مرفوع لصاحب المتجر</option>
+                          <option value="approved">مقبول وبانتظار الشحن</option>
+                          <option value="received">تم الاستلام بالمستودع</option>
+                          <option value="completed">مكتمل ومسوى</option>
+                          <option value="rejected">مرفوض ومغلق</option>
+                          <option value="cancelled">ملغي</option>
                         </select>
                       </div>
 
@@ -1428,12 +1445,15 @@ export default function MerchantDashboard({
                             className="w-full text-xs border border-stone-200 rounded-lg p-2.5 bg-stone-50 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
                           >
                             <option value="all">جميع الحالات التشغيلية</option>
-                            <option value="pending_support">قيد المراجعة - الدعم الفني</option>
-                            <option value="escalated_owner">مرفوع للإدارة العليا</option>
-                            <option value="pending_warehouse">بانتظار وصول الشحنة للمستودع</option>
-                            <option value="warehouse_inspected">تم فحص وجودة السلعة</option>
-                            <option value="resolved_approved">مقبول وتسوّى بالكامل</option>
-                            <option value="resolved_rejected">مرفوض ومغلق</option>
+                            <option value="new">جديد</option>
+                            <option value="under_review">قيد المراجعة</option>
+                            <option value="waiting_customer_info">بانتظار العميل</option>
+                            <option value="escalated_to_owner">مرفوع لصاحب المتجر</option>
+                            <option value="approved">مقبول وبانتظار الشحن</option>
+                            <option value="received">تم الاستلام بالمستودع</option>
+                            <option value="completed">مكتمل ومسوى</option>
+                            <option value="rejected">مرفوض ومغلق</option>
+                            <option value="cancelled">ملغي</option>
                           </select>
                         </div>
 
@@ -1900,11 +1920,11 @@ export default function MerchantDashboard({
                   <div className="space-y-6">
                     <div className="premium-card smooth-shadow overflow-hidden">
                       <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-stone-900">شحنات مرتجعة وصلت للمستودع وتنتظر التفتيش</h3>
-                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">{pendingWarehouseRequests.length} شحنة بحاجة للتفتيش</span>
+                        <h3 className="text-sm font-bold text-stone-900">شحنات مرتجعة للمستودع</h3>
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">{warehouseRequests.length} شحنة جارية</span>
                       </div>
 
-                      {pendingWarehouseRequests.length > 0 ? (
+                      {warehouseRequests.length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-right text-xs">
                             <thead className="bg-stone-50 border-b border-stone-200/50 text-stone-400 font-semibold">
@@ -1918,7 +1938,7 @@ export default function MerchantDashboard({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stone-100 font-medium text-stone-800">
-                              {pendingWarehouseRequests.map((req) => (
+                              {warehouseRequests.map((req) => (
                                 <tr key={req.id} className="hover:bg-stone-50/50 transition-all">
                                   <td className="px-6 py-4.5 font-bold text-stone-900">{req.id}</td>
                                   <td className="px-6 py-4.5 font-bold text-stone-950">{req.customerName}</td>
@@ -1928,16 +1948,26 @@ export default function MerchantDashboard({
                                   </td>
                                   <td className="px-6 py-4.5 font-mono text-stone-700 font-semibold">{req.items[0]?.sku}</td>
                                   <td className="px-6 py-4.5">
-                                    <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded text-[10px] font-bold">
-                                      وصل المستودع - انتظار الفحص
-                                    </span>
+                                    {req.status === 'approved' ? (
+                                      <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-0.5 rounded text-[10px] font-bold">
+                                        بانتظار الاستلام الفعلي
+                                      </span>
+                                    ) : (
+                                      <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded text-[10px] font-bold">
+                                        تم الاستلام - بانتظار الفحص
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="px-6 py-4.5 text-center">
                                     <button
                                       onClick={() => setSelectedRequest(req)}
-                                      className="px-3 py-1.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 font-bold"
+                                      className={`px-3 py-1.5 text-xs rounded-lg font-bold border transition ${
+                                        req.status === 'approved'
+                                          ? 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100'
+                                          : 'text-indigo-700 bg-indigo-50 border-indigo-100 hover:bg-indigo-100'
+                                      }`}
                                     >
-                                      افتح استمارة التفتيش
+                                      {req.status === 'approved' ? 'تسجيل الاستلام' : 'افتح استمارة التفتيش'}
                                     </button>
                                   </td>
                                 </tr>

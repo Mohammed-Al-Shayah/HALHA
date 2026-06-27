@@ -84,11 +84,13 @@ export interface CustomerRequest {
 export interface Store {
   id: string;
   name: string;
+  slug?: string;
   logo: string;
   domain: string;
   ownerName: string;
   ownerEmail: string;
-  status: 'active' | 'suspended';
+  ownerPhone?: string;
+  status: 'pending' | 'active' | 'disabled';
   plan: 'basic' | 'pro' | 'enterprise';
   createdAt: string;
   stats: {
@@ -106,6 +108,6 @@ export interface TeamMember {
   email: string;
   role: 'owner' | 'support' | 'warehouse';
   avatar: string;
-  status: 'online' | 'offline';
+  status: 'pending_activation' | 'active' | 'disabled';
   lastActive: string;
 }

@@ -67,7 +67,7 @@ export const initialStores: Store[] = [
     domain: 'smarttech-corner.com',
     ownerName: 'فيصل الحربي',
     ownerEmail: 'faisal@smarttech.sa',
-    status: 'suspended',
+    status: 'disabled',
     plan: 'basic',
     createdAt: '2026-04-01',
     stats: {
@@ -87,7 +87,7 @@ export const initialTeamMembers: TeamMember[] = [
     email: 'ahmad.q@najdcoffee.com',
     role: 'support',
     avatar: '👨‍💼',
-    status: 'online',
+    status: 'active',
     lastActive: 'الآن',
   },
   {
@@ -96,7 +96,7 @@ export const initialTeamMembers: TeamMember[] = [
     email: 'fatimah@najdcoffee.com',
     role: 'support',
     avatar: '👩‍💼',
-    status: 'online',
+    status: 'active',
     lastActive: 'قبل ٥ د',
   },
   {
@@ -105,7 +105,7 @@ export const initialTeamMembers: TeamMember[] = [
     email: 'bandar.u@najdcoffee.com',
     role: 'warehouse',
     avatar: '👨‍🔧',
-    status: 'online',
+    status: 'active',
     lastActive: 'قبل ١٢ د',
   },
   {
@@ -114,7 +114,7 @@ export const initialTeamMembers: TeamMember[] = [
     email: 'a.alsaud@najdcoffee.com',
     role: 'owner',
     avatar: '🇸🇦',
-    status: 'offline',
+    status: 'pending_activation',
     lastActive: 'أمس الساعة ٩:٠٠ م',
   },
 ];
