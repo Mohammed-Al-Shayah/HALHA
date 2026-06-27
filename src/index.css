@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+  
+  --color-brand-primary: #0d9488;     /* Elegant Teal */
+  --color-brand-secondary: #0f766e;   /* Darker Teal */
+  --color-brand-accent: #f59e0b;      /* Amber Accent */
+  --color-brand-bg: #faf8f5;          /* Off-white / Soft warm neutral background */
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f3f0;
+}
+::-webkit-scrollbar-thumb {
+  background: #dcd9d4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b3ad;
+}
+
+/* Base custom classes for high-quality shadows and transitions */
+.smooth-shadow {
+  box-shadow: 0 4px 20px -2px rgba(139, 131, 118, 0.08), 0 2px 8px -1px rgba(139, 131, 118, 0.04);
+}
+
+.premium-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(220, 215, 206, 0.4);
+  border-radius: 1rem;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}

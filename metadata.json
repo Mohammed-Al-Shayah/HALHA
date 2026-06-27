@@ -1,0 +1,8 @@
+{
+  "name": "حلّها - منصة إدارة المرتجعات",
+  "description": "منصة B2B متكاملة لإدارة طلبات الاسترجاع والاستبدال والشكاوى وتفتيش المستودعات للمتاجر الإلكترونية",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
