@@ -52,6 +52,7 @@ interface MerchantDashboardProps {
       };
     }
   ) => void;
+  onUpdateRequest?: (updatedRequest: CustomerRequest) => void;
 }
 
 export default function MerchantDashboard({
@@ -59,6 +60,7 @@ export default function MerchantDashboard({
   requests,
   teamMembers,
   onUpdateRequestStatus,
+  onUpdateRequest,
 }: MerchantDashboardProps) {
   // Navigation tabs
   const [ownerTab, setOwnerTab] = useState<'dashboard' | 'requests' | 'escalated' | 'reports' | 'settings' | 'team'>('dashboard');
@@ -141,7 +143,7 @@ export default function MerchantDashboard({
 
   // Calculate reports stats
   const reportsCount = reportingFilteredRequests.length;
-  const reportsApprovedCount = reportingFilteredRequests.filter(r => r.status === 'resolved_approved').length;
+  const reportsApprovedCount = reportingFilteredRequests.filter(r => r.status === 'completed').length;
   const reportsApprovedRate = reportsCount > 0 ? Math.round((reportsApprovedCount / reportsCount) * 100) : 0;
   
   const reportsTotalValue = reportingFilteredRequests.reduce((acc, r) => {
@@ -149,7 +151,7 @@ export default function MerchantDashboard({
   }, 0);
   
   const reportsApprovedValue = reportingFilteredRequests
-    .filter(r => r.status === 'resolved_approved')
+    .filter(r => r.status === 'completed')
     .reduce((acc, r) => {
       return acc + r.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     }, 0);
@@ -177,12 +179,15 @@ export default function MerchantDashboard({
       const typeAr = req.type === 'return' ? 'إرجاع' : req.type === 'exchange' ? 'استبدال' : 'شكوى';
       
       let statusAr = 'قيد الانتظار';
-      if (req.status === 'pending_support') statusAr = 'قيد المراجعة - الدعم الفني';
-      else if (req.status === 'escalated_owner') statusAr = 'مرفوع لصاحب المتجر';
-      else if (req.status === 'pending_warehouse') statusAr = 'بانتظار الشحن/المستودع';
-      else if (req.status === 'warehouse_inspected') statusAr = 'تم التفتيش في المستودع';
-      else if (req.status === 'resolved_approved') statusAr = 'مقبول ومكتمل';
-      else if (req.status === 'resolved_rejected') statusAr = 'مرفوض ومغلق';
+      if (req.status === 'new') statusAr = 'جديد';
+      else if (req.status === 'under_review') statusAr = 'قيد المراجعة - الدعم الفني';
+      else if (req.status === 'waiting_customer_info') statusAr = 'بانتظار معلومات العميل';
+      else if (req.status === 'escalated_to_owner') statusAr = 'مرفوع لصاحب المتجر';
+      else if (req.status === 'approved') statusAr = 'مقبول وبانتظار الشحن';
+      else if (req.status === 'received') statusAr = 'تم الاستلام بالمستودع';
+      else if (req.status === 'completed') statusAr = 'مكتمل ومسوى بالكامل';
+      else if (req.status === 'rejected') statusAr = 'مرفوض ومغلق';
+      else if (req.status === 'cancelled') statusAr = 'ملغي';
 
       const totalValue = req.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const itemsReason = req.items.map(item => `${item.name} (${item.sku}) [الكمية: ${item.quantity}، السعر: ${item.price} ر.س] - السبب: ${item.reason}`).join(' | ');
@@ -249,24 +254,33 @@ export default function MerchantDashboard({
       
       let statusAr = 'قيد الانتظار';
       let statusColor = 'text-stone-700';
-      if (req.status === 'pending_support') {
+      if (req.status === 'new') {
+        statusAr = 'جديد';
+        statusColor = 'text-blue-600 font-bold';
+      } else if (req.status === 'under_review') {
         statusAr = 'قيد المراجعة - الدعم';
         statusColor = 'text-amber-600 font-semibold';
-      } else if (req.status === 'escalated_owner') {
+      } else if (req.status === 'waiting_customer_info') {
+        statusAr = 'بانتظار العميل';
+        statusColor = 'text-yellow-600 font-medium';
+      } else if (req.status === 'escalated_to_owner') {
         statusAr = 'مرفوع للمالك';
         statusColor = 'text-purple-600 font-bold';
-      } else if (req.status === 'pending_warehouse') {
-        statusAr = 'بانتظار الشحن';
-        statusColor = 'text-blue-600';
-      } else if (req.status === 'warehouse_inspected') {
-        statusAr = 'تم فحص المستودع';
+      } else if (req.status === 'approved') {
+        statusAr = 'مقبول وبانتظار الشحن';
+        statusColor = 'text-blue-500';
+      } else if (req.status === 'received') {
+        statusAr = 'تم الاستلام بالمستودع';
         statusColor = 'text-indigo-600';
-      } else if (req.status === 'resolved_approved') {
-        statusAr = 'مقبول وتمت التسوية';
+      } else if (req.status === 'completed') {
+        statusAr = 'مكتمل ومسوى';
         statusColor = 'text-teal-600 font-semibold';
-      } else if (req.status === 'resolved_rejected') {
+      } else if (req.status === 'rejected') {
         statusAr = 'مرفوض ومغلق';
         statusColor = 'text-rose-600';
+      } else if (req.status === 'cancelled') {
+        statusAr = 'ملغي';
+        statusColor = 'text-stone-400';
       }
 
       const totalValue = req.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -286,7 +300,7 @@ export default function MerchantDashboard({
 
     const storeLabel = reportStoreFilter === 'all' ? 'جميع المتاجر المتصلة' : reportStoreFilter;
     const typeLabel = reportTypeFilter === 'all' ? 'جميع الأنواع' : (reportTypeFilter === 'return' ? 'إرجاع السلع' : reportTypeFilter === 'exchange' ? 'استبدال السلع' : 'الشكاوى والبلاغات');
-    const statusLabel = reportStatusFilter === 'all' ? 'جميع الحالات التشغيلية' : (reportStatusFilter === 'pending_support' ? 'تحت التدقيق الفني' : reportStatusFilter === 'escalated_owner' ? 'مرفوع لصاحب العمل' : 'مكتمل ومغلق');
+    const statusLabel = reportStatusFilter === 'all' ? 'جميع الحالات التشغيلية' : (reportStatusFilter === 'under_review' ? 'تحت التدقيق الفني' : reportStatusFilter === 'escalated_to_owner' ? 'مرفوع لصاحب العمل' : 'مكتمل ومغلق');
     
     let dateRangeLabel = 'كامل الفترة الزمنية';
     if (reportDateFilter === '7days') dateRangeLabel = 'آخر ٧ أيام للعمليات';
@@ -535,59 +549,80 @@ export default function MerchantDashboard({
   });
 
   // Calculate statistics
-  const pendingSupportRequests = requests.filter(r => r.status === 'pending_support');
-  const escalatedRequests = requests.filter(r => r.status === 'escalated_owner');
-  const pendingWarehouseRequests = requests.filter(r => r.status === 'pending_warehouse');
-  const warehouseInspectedRequests = requests.filter(r => r.status === 'warehouse_inspected');
-  const resolvedRequests = requests.filter(r => r.status === 'resolved_approved' || r.status === 'resolved_rejected');
+  const pendingSupportRequests = requests.filter(r => ['new', 'under_review', 'waiting_customer_info'].includes(r.status));
+  const escalatedRequests = requests.filter(r => r.status === 'escalated_to_owner');
+  const pendingWarehouseRequests = requests.filter(r => r.status === 'approved');
+  const warehouseInspectedRequests = requests.filter(r => r.status === 'received');
+  const resolvedRequests = requests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status));
 
   const totalRefundedValue = requests
-    .filter(r => r.status === 'resolved_approved')
+    .filter(r => r.status === 'completed')
     .reduce((acc, r) => acc + r.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), 0);
 
   // Status translator for badges
   const getStatusBadge = (status: RequestStatus) => {
     switch (status) {
-      case 'pending_support':
+      case 'new':
+        return (
+          <span className="bg-blue-50 text-blue-700 border border-blue-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+            طلب جديد
+          </span>
+        );
+      case 'under_review':
         return (
           <span className="bg-amber-50 text-amber-700 border border-amber-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
             قيد المراجعة - الدعم
           </span>
         );
-      case 'escalated_owner':
+      case 'waiting_customer_info':
+        return (
+          <span className="bg-yellow-50 text-yellow-700 border border-yellow-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
+            بانتظار العميل
+          </span>
+        );
+      case 'escalated_to_owner':
         return (
           <span className="bg-rose-50 text-rose-700 border border-rose-200/60 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-rose-600 rounded-full"></span>
-            مرفوع للإدارة
+            مرفوع للمالك
           </span>
         );
-      case 'pending_warehouse':
+      case 'approved':
         return (
           <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-            بانتظار شحن المستودع
+            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>
+            مقبول وبانتظار الشحن
           </span>
         );
-      case 'warehouse_inspected':
+      case 'received':
         return (
           <span className="bg-sky-50 text-sky-700 border border-sky-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-sky-500 rounded-full"></span>
-            تم الفحص وتأكيد السلعة
+            تم الاستلام بالمستودع
           </span>
         );
-      case 'resolved_approved':
+      case 'completed':
         return (
           <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/30 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-            مكتمل ومقبول
+            مكتمل ومسوى
           </span>
         );
-      case 'resolved_rejected':
+      case 'rejected':
         return (
           <span className="bg-stone-100 text-stone-600 border border-stone-200 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-stone-500 rounded-full"></span>
             مرفوض ومغلق
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span className="bg-stone-50 text-stone-400 border border-stone-200 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-stone-300 rounded-full"></span>
+            ملغي
           </span>
         );
     }
@@ -793,86 +828,22 @@ export default function MerchantDashboard({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedRequest.internalNotes && (
                     <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/40">
-                      <h5 className="text-[11px] font-bold text-stone-500 mb-1">ملاحظات فريق العمل الداخلية (سريّ)</h5>
-                      <p className="text-xs text-stone-700 leading-relaxed">{selectedRequest.internalNotes}</p>
+                      <h5 className="text-[11px] font-bold text-stone-500 mb-1">ملاحظات داخلية</h5>
+                      <p className="text-xs text-stone-600 leading-relaxed">{selectedRequest.internalNotes}</p>
                     </div>
                   )}
-
                   {selectedRequest.escalationReason && (
-                    <div className="bg-rose-50/70 p-3.5 rounded-xl border border-rose-100">
-                      <h5 className="text-[11px] font-bold text-rose-700 mb-1">مبرر الرفع للإدارة العليا</h5>
-                      <p className="text-xs text-rose-800 leading-relaxed">{selectedRequest.escalationReason}</p>
-                    </div>
-                  )}
-
-                  {selectedRequest.inspection && (
-                    <div className="bg-teal-50/40 p-3.5 rounded-xl border border-teal-100 md:col-span-2">
-                      <h5 className="text-[11px] font-bold text-teal-800 mb-1 flex items-center gap-1">
-                        <PackageCheck className="w-3.5 h-3.5" />
-                        <span>تقرير تفتيش المستودع</span>
-                      </h5>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-stone-600 pt-1">
-                        <p>بواسطة: <span className="font-bold">{selectedRequest.inspection.inspectedBy}</span></p>
-                        <p>التاريخ: <span className="font-mono">{selectedRequest.inspection.inspectedAt.split('T')[0]}</span></p>
-                        <p className="col-span-2">حالة المنتج: <span className="font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
-                          {selectedRequest.inspection.condition === 'clean_restock' && 'سليم - جاهز لإعادة البيع'}
-                          {selectedRequest.inspection.condition === 'damaged_scrap' && 'تالف بالكامل - إتلاف فوري'}
-                          {selectedRequest.inspection.condition === 'used_discount' && 'مستعمل خفيف - بيع مخفض'}
-                          {selectedRequest.inspection.condition === 'wrong_item' && 'منتج خاطئ مرسل من العميل'}
-                        </span></p>
-                        <p className="col-span-2 pt-1 border-t border-teal-100/50">تقرير الفاحص: <span className="italic">"{selectedRequest.inspection.notes}"</span></p>
-                      </div>
+                    <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-200/30">
+                      <h5 className="text-[11px] font-bold text-rose-700 mb-1">سبب التصعيد للمالك</h5>
+                      <p className="text-xs text-rose-900 leading-relaxed">{selectedRequest.escalationReason}</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Request Timeline */}
-            <div className="premium-card p-6 md:p-8 smooth-shadow space-y-6">
-              <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider">سجل تتبع ومراحل الطلب التاريخي</h4>
-              
-              <div className="relative border-r border-stone-200/80 mr-4 pr-6 space-y-6">
-                {selectedRequest.timeline.map((event) => (
-                  <div key={event.id} className="relative">
-                    {/* Circle icon placement */}
-                    <span className={`absolute -right-[31px] top-0.5 w-4.5 h-4.5 rounded-full border-4 border-white flex items-center justify-between ${
-                      event.isInternal ? 'bg-amber-500' : 'bg-teal-600'
-                    }`}></span>
-                    
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-stone-800">{event.titleAr}</span>
-                        {event.isInternal && (
-                          <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">إجراء داخلي سري</span>
-                        )}
-                        <span className="text-[10px] text-stone-400 font-mono">{event.createdAt.split('T')[0]} &bull; {event.actorName}</span>
-                      </div>
-                      <p className="text-xs text-stone-500 mt-1 leading-relaxed">{event.descriptionAr}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Dynamic Action Panel depending on active Role */}
-            <div className="premium-card p-6 md:p-8 border-teal-500 bg-white smooth-shadow space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h4 className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>إجراءات معالجة الطلب المتوفرة لصلاحيتك الحالية</span>
-                </h4>
-                <p className="text-[11px] text-stone-500 mt-0.5">
-                  أنت تتصفح الآن بصفتك: <span className="font-bold text-stone-800">
-                    {role === 'owner' && 'مالك المتجر (إدارة عليا)'}
-                    {role === 'support' && 'دعم عملاء المستوى الأول'}
-                    {role === 'warehouse' && 'أخصائي المستودع والتفتيش'}
-                  </span>
-                </p>
-              </div>
-
-              {/* ROLE = SUPPORT ACTIONS */}
-              {role === 'support' && selectedRequest.status === 'pending_support' && (
+            {/* ROLE = SUPPORT ACTIONS */}
+            {role === 'support' && ['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status) && (
                 <div className="space-y-4 pt-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -899,13 +870,13 @@ export default function MerchantDashboard({
                     {/* Action 1: Approve to send reversal label */}
                     <button
                       onClick={() => {
-                        onUpdateRequestStatus(selectedRequest.id, 'pending_warehouse', {
+                        onUpdateRequestStatus(selectedRequest.id, 'approved', {
                           internalNotes: actionNotes || undefined,
                         });
                         setSelectedRequest(null);
                         setActionNotes('');
                       }}
-                      className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                      className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>الموافقة المبدئية وتوليد بوليصة الشحن</span>
@@ -918,7 +889,7 @@ export default function MerchantDashboard({
                           alert('يرجى كتابة مبرر التصعيد أولاً');
                           return;
                         }
-                        onUpdateRequestStatus(selectedRequest.id, 'escalated_owner', {
+                        onUpdateRequestStatus(selectedRequest.id, 'escalated_to_owner', {
                           internalNotes: actionNotes || undefined,
                           escalationReason: escalationReasonInput,
                         });
@@ -926,22 +897,41 @@ export default function MerchantDashboard({
                         setActionNotes('');
                         setEscalationReasonInput('');
                       }}
-                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                     >
                       <AlertTriangle className="w-3.5 h-3.5" />
                       <span>تصعيد الطلب لصاحب المتجر لإصدار قرار استثنائي</span>
                     </button>
 
-                    {/* Action 3: Reject */}
+                    {/* Action 3: Request Info */}
                     <button
                       onClick={() => {
-                        onUpdateRequestStatus(selectedRequest.id, 'resolved_rejected', {
+                        const infoDetails = prompt('ما هي المعلومات المطلوبة من العميل؟');
+                        if (infoDetails) {
+                          onUpdateRequestStatus(selectedRequest.id, 'waiting_customer_info', {
+                            internalNotes: actionNotes || undefined,
+                            infoRequestedDetails: infoDetails,
+                          });
+                          setSelectedRequest(null);
+                          setActionNotes('');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      <span>طلب معلومات إضافية من العميل</span>
+                    </button>
+
+                    {/* Action 4: Reject */}
+                    <button
+                      onClick={() => {
+                        onUpdateRequestStatus(selectedRequest.id, 'rejected', {
                           internalNotes: actionNotes || undefined,
                         });
                         setSelectedRequest(null);
                         setActionNotes('');
                       }}
-                      className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold"
+                      className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       رفض الطلب نهائياً
                     </button>
@@ -950,66 +940,90 @@ export default function MerchantDashboard({
               )}
 
               {/* ROLE = WAREHOUSE ACTIONS */}
-              {role === 'warehouse' && selectedRequest.status === 'pending_warehouse' && (
+              {role === 'warehouse' && (selectedRequest.status === 'approved' || selectedRequest.status === 'received') && (
                 <div className="space-y-4 pt-2">
-                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/50">
-                    <h5 className="text-xs font-bold text-stone-800 mb-3">تفاصيل التفتيش الفعلي للمرتجع الوارد</h5>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة التفتيش والسلعة الفعليّة</label>
-                        <select
-                          value={inspectionCondition}
-                          onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
-                          className="w-full px-2 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                        >
-                          <option value="clean_restock">سليم ومغلف - إعادة للمخزن للبيع</option>
-                          <option value="damaged_scrap">تالف بالكامل - إتلاف وشطب</option>
-                          <option value="used_discount">مستعمل خفيف - تصنيف بيع مخفض</option>
-                          <option value="wrong_item">منتج خاطئ مغاير لفاتورة الشراء</option>
-                        </select>
+                  {selectedRequest.status === 'approved' ? (
+                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200/50 space-y-3">
+                      <h5 className="text-xs font-bold text-stone-800">بانتظار استلام الشحنة في المستودع</h5>
+                      <p className="text-[11px] text-stone-500 leading-relaxed">
+                        وصلت السلعة إلى المستودع؟ انقر لتسجيل الاستلام ونقل الحالة للبدء بالفحص الفني والتقييم.
+                      </p>
+                      <button
+                        onClick={() => {
+                          onUpdateRequestStatus(selectedRequest.id, 'received', {
+                            internalNotes: 'تم تأكيد وصول واستلام الشحنة العكسية للمستودع، قيد البدء بالفحص.',
+                          });
+                          setSelectedRequest(null);
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <PackageCheck className="w-4 h-4" />
+                        <span>تأكيد استلام الشحنة وبدء الفحص</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/50">
+                      <h5 className="text-xs font-bold text-stone-800 mb-3">تفاصيل التفتيش الفعلي للمرتجع الوارد</h5>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة التفتيش والسلعة الفعليّة</label>
+                          <select
+                            value={inspectionCondition}
+                            onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
+                            className="w-full px-2 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                          >
+                            <option value="clean_restock">سليم ومغلف - إعادة للمخزن للبيع</option>
+                            <option value="damaged_scrap">تالف بالكامل - إتلاف وشطب</option>
+                            <option value="used_discount">مستعمل خفيف - تصنيف بيع مخفض</option>
+                            <option value="wrong_item">منتج خاطئ مغاير لفاتورة الشراء</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[11px] font-bold text-stone-700 mb-1">تقرير الفحص وملاحظات المستودع</label>
+                          <input
+                            type="text"
+                            value={inspectionNotes}
+                            onChange={(e) => setInspectionNotes(e.target.value)}
+                            placeholder="اكتب تفاصيل حالة المنتج، العيوب، أو أي ملاحظات فنية..."
+                            className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                          />
+                        </div>
                       </div>
 
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] font-bold text-stone-700 mb-1">تقرير الفاحص المفصل للمستودع</label>
-                        <input
-                          type="text"
-                          value={inspectionNotes}
-                          onChange={(e) => setInspectionNotes(e.target.value)}
-                          placeholder="اكتب تقرير الفحص الفني للسلعة بالتفصيل هنا..."
-                          className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                        />
+                      <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-stone-200/50">
+                        <button
+                          onClick={() => {
+                            if (!inspectionNotes) {
+                              alert('يرجى كتابة ملاحظات الفحص أولاً');
+                              return;
+                            }
+                            onUpdateRequestStatus(selectedRequest.id, 'received', {
+                              internalNotes: `تم الفحص الفني: ${inspectionNotes}`,
+                              inspection: {
+                                condition: inspectionCondition,
+                                notes: inspectionNotes,
+                                inspectedBy: 'أخصائي المستودع',
+                                inspectedAt: new Date().toISOString(),
+                              },
+                            });
+                            setSelectedRequest(null);
+                            setInspectionNotes('');
+                          }}
+                          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>تأكيد الفحص ونقل الحالة للمالك</span>
+                        </button>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => {
-                        if (!inspectionNotes) {
-                          alert('يرجى كتابة تقرير الفحص والملحوظات الفنية.');
-                          return;
-                        }
-                        onUpdateRequestStatus(selectedRequest.id, 'warehouse_inspected', {
-                          inspection: {
-                            inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
-                            inspectedAt: new Date().toISOString(),
-                            condition: inspectionCondition,
-                            notes: inspectionNotes,
-                          }
-                        });
-                        setSelectedRequest(null);
-                        setInspectionNotes('');
-                      }}
-                      className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold mt-4 flex items-center justify-center gap-1.5 shadow-xs"
-                    >
-                      <PackageCheck className="w-4 h-4" />
-                      <span>تسجيل تقرير الفحص وإرساله للإدارة للتعويض</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
               )}
 
               {/* ROLE = OWNER ACTIONS */}
-              {role === 'owner' && (selectedRequest.status === 'escalated_owner' || selectedRequest.status === 'warehouse_inspected' || selectedRequest.status === 'pending_support') && (
+              {role === 'owner' && (['escalated_to_owner', 'received', 'under_review', 'new'].includes(selectedRequest.status)) && (
                 <div className="space-y-4 pt-2">
                   <div className="bg-teal-50/20 border border-teal-200/50 p-4 rounded-xl">
                     <h5 className="text-xs font-bold text-teal-950 mb-1">صلاحيات القرار النهائي للمالك</h5>
@@ -1030,13 +1044,13 @@ export default function MerchantDashboard({
                       {/* Accept and process */}
                       <button
                         onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'resolved_approved', {
+                          onUpdateRequestStatus(selectedRequest.id, 'completed', {
                             internalNotes: actionNotes ? `موافقة نهائية من المالك: ${actionNotes}` : 'موافقة نهائية من الإدارة العليا وتفعيل التسوية',
                           });
                           setSelectedRequest(null);
                           setActionNotes('');
                         }}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         <span>قبول طلب التعويض وتحويل المبلغ بنكياً فوراً</span>
@@ -1045,13 +1059,13 @@ export default function MerchantDashboard({
                       {/* Reject */}
                       <button
                         onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'resolved_rejected', {
+                          onUpdateRequestStatus(selectedRequest.id, 'rejected', {
                             internalNotes: actionNotes ? `رفض نهائي من المالك: ${actionNotes}` : 'مرفوض ومغلق بقرار الإدارة',
                           });
                           setSelectedRequest(null);
                           setActionNotes('');
                         }}
-                        className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                        className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                       >
                         <XCircle className="w-4 h-4" />
                         <span>رفض طلب التعويض بشكل نهائي ومبرر</span>
@@ -1062,17 +1076,17 @@ export default function MerchantDashboard({
               )}
 
               {/* No actions required */}
-              {((role === 'support' && selectedRequest.status !== 'pending_support') ||
-                (role === 'warehouse' && selectedRequest.status !== 'pending_warehouse') ||
-                (selectedRequest.status === 'resolved_approved' || selectedRequest.status === 'resolved_rejected')) && (
+              {((role === 'support' && !['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status)) ||
+                (role === 'warehouse' && !['approved', 'received'].includes(selectedRequest.status)) ||
+                (role === 'owner' && !['escalated_to_owner', 'received', 'under_review', 'new'].includes(selectedRequest.status)) ||
+                ['completed', 'rejected', 'cancelled'].includes(selectedRequest.status)) && (
                 <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-stone-500 text-xs flex items-center gap-2">
                   <Info className="w-4 h-4" />
                   <span>الطلب مغلق حالياً أو يحتاج لإجراء من دور مستخدم آخر (أنت تشاهد تتبع السجل فقط).</span>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
+          ) : (
           /* MULTI-TAB PORTFOLIO VIEWS depending on active Role */
           <>
             {/* OWNER ROLE PAGES */}
@@ -1616,25 +1630,8 @@ export default function MerchantDashboard({
                                     <td className="px-4 py-3 text-xs text-stone-600">{req.storeName}</td>
                                     <td className="px-4 py-3 text-xs text-stone-500 font-medium">{typeAr}</td>
                                     <td className="px-4 py-3 text-xs">
-                                      {req.status === 'resolved_approved' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-100">مقبول ومسوى</span>
-                                      )}
-                                      {req.status === 'resolved_rejected' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">مرفوض ومغلق</span>
-                                      )}
-                                      {req.status === 'pending_support' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">مع الدعم الفني</span>
-                                      )}
-                                      {req.status === 'escalated_owner' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-100">مرفوع للإدارة</span>
-                                      )}
-                                      {req.status === 'pending_warehouse' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-100">بانتظار المستودع</span>
-                                      )}
-                                      {req.status === 'warehouse_inspected' && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">تم الفحص</span>
-                                      )}
-                                    </td>
+                                       {getStatusBadge(req.status)}
+                                     </td>
                                     <td className="px-4 py-3 text-xs font-bold text-stone-900 font-mono text-left">{totalValue.toLocaleString('en-US')} ر.س</td>
                                     <td className="px-4 py-3 text-xs text-stone-500 font-mono text-left">{new Date(req.createdAt).toLocaleDateString('ar-SA')}</td>
                                   </tr>

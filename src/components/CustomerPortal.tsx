@@ -25,11 +25,13 @@ import {
 interface CustomerPortalProps {
   requests: CustomerRequest[];
   onSubmitNewRequest: (newRequest: CustomerRequest) => void;
+  onUpdateRequest?: (updatedRequest: CustomerRequest) => void;
 }
 
 export default function CustomerPortal({
   requests,
   onSubmitNewRequest,
+  onUpdateRequest,
 }: CustomerPortalProps) {
   // Mobile Navigation Screen
   const [screen, setScreen] = useState<'landing' | 'verify' | 'select_type' | 'form' | 'success' | 'track'>('landing');
@@ -41,6 +43,7 @@ export default function CustomerPortal({
   
   // Tracking search
   const [trackIdInput, setTrackIdInput] = useState('');
+  const [trackPhoneInput, setTrackPhoneInput] = useState('');
   const [trackedRequest, setTrackedRequest] = useState<CustomerRequest | null>(null);
 
   // Form states
@@ -49,6 +52,8 @@ export default function CustomerPortal({
   const [returnReason, setReturnReason] = useState('البن منسكب ومكشوف داخل صندوق التوصيل الكرتوني عند استلامه.');
   const [iban, setIban] = useState('SA');
   const [sizeDesired, setSizeDesired] = useState('56');
+  const [complaintType, setComplaintType] = useState('تأخر توصيل الشحنة');
+  const [customerMsgInput, setCustomerMsgInput] = useState('');
 
   // Completed tracking id
   const [justSubmittedId, setJustSubmittedId] = useState('');
@@ -90,6 +95,8 @@ export default function CustomerPortal({
       reason: returnReason,
     };
 
+    const typeDesc = requestType === 'return' ? 'استرجاع مالي للسلعة' : requestType === 'exchange' ? 'استبدال المنتج' : `شكوى وبلاغ (${complaintType})`;
+
     const newRequest: CustomerRequest = {
       id: generatedId,
       storeId: 'store-1',
@@ -101,18 +108,27 @@ export default function CustomerPortal({
       customerIBAN: requestType === 'return' ? iban : undefined,
       type: requestType,
       items: [newReqItem],
-      status: 'pending_support',
+      status: 'new',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       timeline: [
         {
           id: `ev-${Date.now()}`,
-          status: 'created',
+          status: 'new',
           titleAr: 'تقديم الطلب عبر البوابة',
-          descriptionAr: `تم استقبال طلب ${requestType === 'return' ? 'الاسترجاع المالي للسلعة' : 'الاستبدال'} وتوليد رقم التتبع بنجاح.`,
+          descriptionAr: `تم استقبال طلب ${typeDesc} وتوليد رقم التتبع بنجاح.`,
           createdAt: new Date().toISOString(),
           actorName: 'العميل',
           isInternal: false,
+        }
+      ],
+      messages: [
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'merchant',
+          senderName: 'خدمة العملاء',
+          text: `مرحباً بك، أهلاً بك في بوابة الدعم للمتجر. تم استقبال طلب ${typeDesc} بنجاح وسنتواصل معك هنا قريباً جداً.`,
+          createdAt: new Date().toISOString()
         }
       ]
     };
@@ -123,8 +139,13 @@ export default function CustomerPortal({
   };
 
   // Customer tracking search
-  const handleTrackSearch = (id: string) => {
-    const found = requests.find(r => r.id.toLowerCase() === id.trim().toLowerCase());
+  const handleTrackSearch = (id: string, phone: string = phoneNumber) => {
+    const pInput = phone.trim();
+    if (!id.trim() || !pInput) return;
+    const found = requests.find(
+      r => r.id.toLowerCase() === id.trim().toLowerCase() && 
+      (r.customerPhone.includes(pInput) || pInput.includes(r.customerPhone))
+    );
     if (found) {
       setTrackedRequest(found);
     } else {
@@ -132,21 +153,99 @@ export default function CustomerPortal({
     }
   };
 
+  // Chat message and photo handlers
+  const handleSendCustomerMessage = (text: string, photoUrl?: string) => {
+    if (!trackedRequest || (!text.trim() && !photoUrl)) return;
+    
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'customer' as const,
+      senderName: trackedRequest.customerName,
+      text: text,
+      createdAt: new Date().toISOString(),
+      photoUrl: photoUrl
+    };
+
+    const updatedMessages = trackedRequest.messages ? [...trackedRequest.messages, newMessage] : [newMessage];
+    
+    const updatedTimeline = [...trackedRequest.timeline, {
+      id: `ev-${Date.now()}`,
+      status: trackedRequest.status,
+      titleAr: photoUrl ? 'رفع صورة إضافية من العميل' : 'إضافة رد من العميل',
+      descriptionAr: text || 'قام العميل بإرفاق صورة إضافية لتوضيح حالة المنتج.',
+      createdAt: new Date().toISOString(),
+      actorName: 'العميل',
+      isInternal: false,
+    }];
+
+    const updatedRequest = {
+      ...trackedRequest,
+      messages: updatedMessages,
+      timeline: updatedTimeline,
+      updatedAt: new Date().toISOString()
+    };
+
+    setTrackedRequest(updatedRequest);
+    if (onUpdateRequest) {
+      onUpdateRequest(updatedRequest);
+    }
+    setCustomerMsgInput('');
+  };
+
+  const handleUploadAdditionalPhoto = () => {
+    const simulatedPhotoUrl = 'https://images.unsplash.com/photo-1577968897966-3d4325b36b61?q=80&w=300&auto=format&fit=crop';
+    handleSendCustomerMessage('قمت بإرفاق صورة إضافية لإثبات الحالة.', simulatedPhotoUrl);
+  };
+
+  const handleCancelRequest = () => {
+    if (!trackedRequest) return;
+    
+    const updatedTimeline = [...trackedRequest.timeline, {
+      id: `ev-${Date.now()}`,
+      status: 'cancelled' as const,
+      titleAr: 'إلغاء الطلب من قِبل العميل',
+      descriptionAr: 'قام المشتري بإلغاء طلب المرتجع وإغلاقه من بوابة العميل.',
+      createdAt: new Date().toISOString(),
+      actorName: 'العميل',
+      isInternal: false,
+    }];
+
+    const updatedRequest = {
+      ...trackedRequest,
+      status: 'cancelled' as const,
+      timeline: updatedTimeline,
+      updatedAt: new Date().toISOString()
+    };
+
+    setTrackedRequest(updatedRequest);
+    if (onUpdateRequest) {
+      onUpdateRequest(updatedRequest);
+    }
+  };
+
   // Convert merchant-centric statuses to friendly localized statuses for consumers
   const getCustomerFriendlyStatus = (status: RequestStatus) => {
     switch (status) {
-      case 'pending_support':
-        return 'طلبك قيد المراجعة والتدقيق من إدارة المتجر';
-      case 'escalated_owner':
-        return 'طلبك قيد المراجعة من إدارة المتجر'; // SECURITY EXCLUSION: customers NEVER see internal escalation
-      case 'pending_warehouse':
-        return 'بانتظار شحن/وصول المنتج التالف للمستودع';
-      case 'warehouse_inspected':
-        return 'تم فحص السلعة في المستودع وقبول التوصية';
-      case 'resolved_approved':
-        return 'تم قبول الطلب وتحويل المستحقات البنكية بنجاح';
-      case 'resolved_rejected':
-        return 'تم إغلاق الطلب ومراجعة الملحوظات مع العميل';
+      case 'new':
+        return 'تم استلام طلبكم وهو قيد المراجعة والتدقيق الإداري';
+      case 'under_review':
+        return 'يجري مراجعة تفاصيل طلبكم من الدعم الفني';
+      case 'waiting_customer_info':
+        return 'نحتاج معلومات إضافية منكم لإتمام الطلب (انظر الرسائل بالأسفل)';
+      case 'escalated_to_owner':
+        return 'طلبك قيد المراجعة الإستثنائية من الإدارة العليا للمتجر';
+      case 'approved':
+        return 'تم قبول الطلب مبدئياً وبانتظار وصول الشحنة للمستودع';
+      case 'rejected':
+        return 'تم رفض طلبكم لعدم مطابقته لسياسات المتجر';
+      case 'received':
+        return 'وصل المنتج للمستودع وهو قيد الفحص الفني والتقييم';
+      case 'completed':
+        return 'تمت الموافقة النهائية واعتماد التسوية وإتمام طلبكم بنجاح';
+      case 'cancelled':
+        return 'تم إلغاء الطلب وإغلاقه بناءً على رغبتكم';
+      default:
+        return 'طلبك تحت المعالجة والمتابعة المستمرة';
     }
   };
 
@@ -304,7 +403,7 @@ export default function CustomerPortal({
             <div className="flex-1 flex flex-col justify-between">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold text-stone-900">ما نوع التعويض المراد تقديمه؟</h2>
+                  <h2 className="text-sm font-bold text-stone-900">ما نوع التعويض أو البلاغ المطلوب؟</h2>
                   <p className="text-[10px] text-stone-400 mt-1">اختر الإجراء الذي يناسب حالتك الحالية للمتابعة.</p>
                 </div>
 
@@ -312,7 +411,7 @@ export default function CustomerPortal({
                   {/* Option 1: Return (Refund) */}
                   <button
                     onClick={() => { setRequestType('return'); setScreen('form'); }}
-                    className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-teal-500 hover:bg-teal-50/20 smooth-shadow flex items-start gap-3 transition-all"
+                    className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-teal-500 hover:bg-teal-50/20 smooth-shadow flex items-start gap-3 transition-all cursor-pointer"
                   >
                     <span className="p-2 bg-amber-50 text-amber-700 rounded-xl mt-0.5"><CreditCard className="w-4 h-4" /></span>
                     <div className="space-y-1">
@@ -324,12 +423,24 @@ export default function CustomerPortal({
                   {/* Option 2: Exchange */}
                   <button
                     onClick={() => { setRequestType('exchange'); setScreen('form'); }}
-                    className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-teal-500 hover:bg-teal-50/20 smooth-shadow flex items-start gap-3 transition-all"
+                    className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-teal-500 hover:bg-teal-50/20 smooth-shadow flex items-start gap-3 transition-all cursor-pointer"
                   >
                     <span className="p-2 bg-teal-50 text-teal-700 rounded-xl mt-0.5"><RefreshCw className="w-4 h-4" /></span>
                     <div className="space-y-1">
                       <h4 className="text-xs font-bold text-stone-900">استبدال مقاس أو نوع المنتج</h4>
                       <p className="text-[10px] text-stone-400">لاستبدال مقاس عباية أو نوع ماكينة ومطحنة ببديل آخر مع تنسيق شحن القطعة البديلة.</p>
+                    </div>
+                  </button>
+
+                  {/* Option 3: Complaint */}
+                  <button
+                    onClick={() => { setRequestType('complaint'); setScreen('form'); }}
+                    className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-rose-500 hover:bg-rose-50/20 smooth-shadow flex items-start gap-3 transition-all cursor-pointer"
+                  >
+                    <span className="p-2 bg-rose-50 text-rose-700 rounded-xl mt-0.5"><AlertCircle className="w-4 h-4" /></span>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-stone-900">تقديم شكوى أو بلاغ بخصوص الطلب</h4>
+                      <p className="text-[10px] text-stone-400">لرفع بلاغ فوري عن مشاكل الطلب الأخرى، تأخر الشحنات، السلع الناقصة أو سوء المعاملة.</p>
                     </div>
                   </button>
                 </div>
@@ -362,20 +473,40 @@ export default function CustomerPortal({
                   </div>
                 </div>
 
+                {/* Complaint type if selected */}
+                {requestType === 'complaint' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-700 mb-1">نوع الشكوى / البلاغ</label>
+                    <select
+                      value={complaintType}
+                      onChange={(e) => setComplaintType(e.target.value)}
+                      className="w-full px-2 py-2.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white cursor-pointer"
+                    >
+                      <option value="تأخر توصيل الشحنة">تأخر توصيل الشحنة وتتبع شركة الشحن</option>
+                      <option value="سوء معاملة خدمة العملاء">سوء معاملة خدمة العملاء أو الدعم</option>
+                      <option value="سلعة ناقصة في الطلب">وصول طلب ناقص أو عناصر مفقودة</option>
+                      <option value="عيب في التغليف الخارجي">تلف أو عيب في تغليف الشحن الخارجي</option>
+                      <option value="أخرى">أخرى - توضيح التفاصيل بالأسفل</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Reason field */}
                 <div>
-                  <label className="block text-[11px] font-bold text-stone-700 mb-1">وصف مبرر الاستبدال/الاسترجاع</label>
+                  <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                    {requestType === 'complaint' ? 'وصف تفاصيل ومبررات الشكوى' : 'وصف مبرر الاستبدال/الاسترجاع'}
+                  </label>
                   <textarea
                     required
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
-                    placeholder="اشرح الخلل أو سبب عدم ملاءمة المقاس لزملائنا فنيي الفحص بالمستودع..."
+                    placeholder={requestType === 'complaint' ? 'اكتب تفاصيل البلاغ والمشكلة التي تواجهها هنا ليتلقاها الدعم الفني...' : 'اشرح الخلل أو سبب عدم ملاءمة المقاس لزملائنا فنيي الفحص بالمستودع...'}
                     className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-16 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
                   />
                 </div>
 
                 {/* Contextual field for Return (IBAN) */}
-                {requestType === 'return' ? (
+                {requestType === 'return' && (
                   <div>
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">رقم الآيبان البنكي للتعويض المالي (IBAN)</label>
                     <input
@@ -387,9 +518,11 @@ export default function CustomerPortal({
                       className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
                       dir="ltr"
                     />
-                    <p className="text-[9px] text-stone-400 mt-1">سيتم التحويل مباشرة لهذا الحساب فور تدقيق المنتج وقبوله.</p>
+                    <p className="text-[9px] text-stone-400 mt-1">SAxxxxxxxxxxxxxxxxxxxxxxxx</p>
                   </div>
-                ) : (
+                )}
+
+                {requestType === 'exchange' && (
                   /* Size selection for exchange */
                   <div>
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">المقاس أو اللون المطلوب استبداله</label>
@@ -418,7 +551,7 @@ export default function CustomerPortal({
 
               <button
                 type="submit"
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl text-xs font-bold shadow-xs"
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl text-xs font-bold shadow-xs cursor-pointer"
               >
                 تأكيد وإرسال طلب التعويض &larr;
               </button>
@@ -450,16 +583,16 @@ export default function CustomerPortal({
               <div className="space-y-2">
                 <button
                   onClick={() => {
-                    handleTrackSearch(justSubmittedId);
+                    handleTrackSearch(justSubmittedId, phoneNumber);
                     setScreen('track');
                   }}
-                  className="w-full bg-stone-900 text-white py-3 rounded-xl text-xs font-bold"
+                  className="w-full bg-stone-900 text-white py-3 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   تتبع حالة هذا الطلب الآن
                 </button>
                 <button
                   onClick={() => setScreen('landing')}
-                  className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-2.5 rounded-xl text-xs font-bold"
+                  className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-2.5 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   العودة للرئيسية
                 </button>
@@ -469,28 +602,43 @@ export default function CustomerPortal({
 
           {/* SCREEN: TRACK REQUEST PAGE */}
           {screen === 'track' && (
-            <div className="flex-1 flex flex-col justify-between space-y-6">
+            <div className="flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold text-stone-900">تتبع الطلبات وحالة التسويات</h2>
-                  <p className="text-[10px] text-stone-400 mt-1">اكتب رقم تتبع حلّها الممنوح لك لمشاهدة الموقف الفعلي لطلبك.</p>
+                  <h2 className="text-sm font-bold text-stone-900 font-sans">تتبع الطلبات وحالة التسويات</h2>
+                  <p className="text-[10px] text-stone-400 mt-1 font-sans">اكتب رقم تتبع حلّها ورقم الجوال لمشاهدة الموقف الفعلي لطلبك.</p>
                 </div>
 
-                {/* Track Search input */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={trackIdInput}
-                    onChange={(e) => setTrackIdInput(e.target.value)}
-                    placeholder="مثال: HAL-1024"
-                    className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none bg-white text-right"
-                    dir="ltr"
-                  />
+                {/* Track Search inputs */}
+                <div className="space-y-2 bg-stone-50 p-3 rounded-2xl border border-stone-200/50">
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-500 mb-1">رقم تتبع حلّها (HAL-xxxx)</label>
+                    <input
+                      type="text"
+                      value={trackIdInput}
+                      onChange={(e) => setTrackIdInput(e.target.value)}
+                      placeholder="مثال: HAL-1024"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none bg-white text-right"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-stone-500 mb-1">رقم الجوال المسجل بالطلب</label>
+                    <input
+                      type="tel"
+                      value={trackPhoneInput}
+                      onChange={(e) => setTrackPhoneInput(e.target.value)}
+                      placeholder="مثال: 966501234567"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none bg-white text-right"
+                      dir="ltr"
+                    />
+                  </div>
                   <button
-                    onClick={() => handleTrackSearch(trackIdInput)}
-                    className="bg-teal-600 text-white px-3.5 rounded-xl text-xs font-bold flex items-center justify-center"
+                    onClick={() => handleTrackSearch(trackIdInput, trackPhoneInput)}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Search className="w-4 h-4" />
+                    <span>البحث والتحقق من حالة الطلب</span>
                   </button>
                 </div>
 
@@ -500,7 +648,7 @@ export default function CustomerPortal({
                       {/* Customer info header */}
                       <div className="bg-white p-3.5 border border-stone-200/50 rounded-2xl smooth-shadow space-y-2 text-xs">
                         <div className="flex justify-between items-center">
-                          <span className="font-bold text-teal-800">{trackedRequest.id}</span>
+                          <span className="font-bold text-teal-800 font-mono">{trackedRequest.id}</span>
                           <span className="text-[10px] text-stone-400 font-mono">{trackedRequest.createdAt.split('T')[0]}</span>
                         </div>
                         <p className="text-stone-700">مرحلة طلب التعويض الحالية:</p>
@@ -508,14 +656,95 @@ export default function CustomerPortal({
                           {getCustomerFriendlyStatus(trackedRequest.status)}
                         </span>
                         
-                        {trackedRequest.status === 'resolved_approved' && (
+                        {trackedRequest.status === 'completed' && (
                           <div className="p-2 bg-emerald-50 text-emerald-800 text-[10px] rounded leading-relaxed border border-emerald-100 text-center font-bold">
-                            🎉 تهانينا! تم تحويل المبلغ البنكي وتفويض التسوية وإغلاق المعالجة بنجاح.
+                            🎉 تهانينا! تم تحويل مبلغ التعويض أو اعتماد الإجراء وإغلاق المعالجة بنجاح.
                           </div>
                         )}
-                        {trackedRequest.status === 'resolved_rejected' && (
+                        {trackedRequest.status === 'rejected' && (
                           <div className="p-2 bg-stone-50 text-stone-800 text-[10px] rounded leading-relaxed border border-stone-200 text-center">
-                            تم البت في طلبك وإغلاقه. يُرجى مراجعة ملحوظات القرار النهائي.
+                            تم البت في طلبك وإغلاقه. يُرجى مراجعة ملحوظات القرار النهائي بالأسفل.
+                          </div>
+                        )}
+
+                        {/* Cancel request button before approval */}
+                        {['new', 'under_review', 'waiting_customer_info', 'escalated_to_owner'].includes(trackedRequest.status) && (
+                          <button
+                            onClick={handleCancelRequest}
+                            className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 text-[10px] font-bold py-2 rounded-xl border border-rose-100 transition mt-2 cursor-pointer"
+                          >
+                            ❌ إلغاء الطلب نهائياً
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Chat Messages section */}
+                      <div className="bg-white p-3.5 border border-stone-200/50 rounded-2xl smooth-shadow space-y-3">
+                        <h4 className="text-[11px] font-bold text-stone-800 border-b border-stone-100 pb-1.5 flex items-center justify-between">
+                          <span>💬 المحادثة ورسائل الدعم الفني</span>
+                          <span className="text-[9px] bg-teal-50 text-teal-700 px-1.5 py-0.5 rounded font-mono">نشط</span>
+                        </h4>
+
+                        {/* Message log */}
+                        <div className="space-y-2 max-h-[160px] overflow-y-auto p-1 text-[11px] leading-relaxed">
+                          {trackedRequest.messages && trackedRequest.messages.length > 0 ? (
+                            trackedRequest.messages.map((msg) => {
+                              const isCustomer = msg.sender === 'customer';
+                              return (
+                                <div key={msg.id} className={`flex flex-col ${isCustomer ? 'items-start' : 'items-end'}`}>
+                                  <span className="text-[9px] text-stone-400 mb-0.5">{msg.senderName}</span>
+                                  <div className={`p-2.5 rounded-2xl max-w-[85%] ${
+                                    isCustomer 
+                                      ? 'bg-teal-600 text-white rounded-tr-none text-right' 
+                                      : 'bg-stone-100 text-stone-800 rounded-tl-none text-right'
+                                  }`}>
+                                    <p>{msg.text}</p>
+                                    {msg.photoUrl && (
+                                      <img 
+                                        src={msg.photoUrl} 
+                                        alt="مرفق إضافي" 
+                                        className="mt-1.5 rounded-lg border border-stone-200/50 max-h-[100px] object-cover w-full animate-fade-in"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-center text-stone-400 text-[10px] py-4">لا توجد رسائل سابقة في هذا الطلب.</p>
+                          )}
+                        </div>
+
+                        {/* Input form for replies & upload additional photos */}
+                        {trackedRequest.status !== 'cancelled' && (
+                          <div className="space-y-2 pt-2 border-t border-stone-100">
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                value={customerMsgInput}
+                                onChange={(e) => setCustomerMsgInput(e.target.value)}
+                                placeholder="اكتب ردك هنا للدعم..."
+                                className="flex-1 px-2.5 py-1.5 border border-stone-200 rounded-lg text-[11px] focus:outline-none bg-white"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (customerMsgInput.trim()) {
+                                    handleSendCustomerMessage(customerMsgInput);
+                                  }
+                                }}
+                                className="bg-teal-600 hover:bg-teal-700 text-white px-3 rounded-lg text-[11px] font-bold cursor-pointer"
+                              >
+                                إرسال
+                              </button>
+                            </div>
+                            
+                            <button
+                              onClick={handleUploadAdditionalPhoto}
+                              className="w-full bg-stone-50 hover:bg-stone-100 text-stone-600 text-[10px] font-bold py-1.5 rounded-lg border border-stone-200/60 flex items-center justify-center gap-1 transition cursor-pointer"
+                            >
+                              📸 رفع وإرفاق صورة إضافية للسلعة
+                            </button>
                           </div>
                         )}
                       </div>
@@ -530,50 +759,50 @@ export default function CustomerPortal({
                             <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-teal-600"></span>
                             <div className="text-xs">
                               <p className="font-bold text-stone-800">تلقي طلب المشتري بالنظام</p>
-                              <p className="text-[10px] text-stone-500">تم تسجيل تفاصيل السلعة المرتجعة وبدء التدقيق.</p>
+                              <p className="text-[10px] text-stone-500">تم تسجيل تفاصيل السلعة المرتجعة وبدء التدقيق المبدئي.</p>
                             </div>
                           </div>
 
-                          {/* Step 2: Review (pending support or escalated owner both look like 'reviewing') */}
-                          {(trackedRequest.status === 'pending_support' || trackedRequest.status === 'escalated_owner') && (
+                          {/* Step 2: Review */}
+                          {['new', 'under_review', 'waiting_customer_info', 'escalated_to_owner'].includes(trackedRequest.status) && (
                             <div className="relative">
                               <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-amber-500 animate-pulse"></span>
                               <div className="text-xs">
                                 <p className="font-bold text-stone-800">قيد المراجعة والتدقيق الإداري</p>
-                                <p className="text-[10px] text-stone-500">يقوم ممثلو خدمة المبيعات بمطابقة طلبك مع صور الإثبات لاعتماد بوليصة المرتجع.</p>
+                                <p className="text-[10px] text-stone-500">يقوم ممثلو خدمة المبيعات بمطابقة طلبك لاعتماد تفعيل بوليصة الشحن.</p>
                               </div>
                             </div>
                           )}
 
-                          {/* Step 3: Pending Warehouse */}
-                          {(trackedRequest.status === 'pending_warehouse' || trackedRequest.status === 'warehouse_inspected' || trackedRequest.status === 'resolved_approved') && (
+                          {/* Step 3: Approved */}
+                          {['approved', 'received', 'completed'].includes(trackedRequest.status) && (
                             <div className="relative">
-                              <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'pending_warehouse' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
+                              <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'approved' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
                               <div className="text-xs">
-                                <p className="font-bold text-stone-800">بانتظار وصول وفحص السلعة بالمستودع</p>
-                                <p className="text-[10px] text-stone-500">تم تزويدك ببوليصة الشحن. يُرجى تسليم المنتج لأقرب فرع لمزود الشحن المذكور.</p>
+                                <p className="font-bold text-stone-800">تم قبول الطلب وجاري الشحن للمستودع</p>
+                                <p className="text-[10px] text-stone-500">تم قبول المرتجع مبدئياً وجاري استلام القطع لإجراء الفحص الفني والتقييم.</p>
                               </div>
                             </div>
                           )}
 
-                          {/* Step 4: Inspected */}
-                          {(trackedRequest.status === 'warehouse_inspected' || trackedRequest.status === 'resolved_approved') && (
+                          {/* Step 4: Received */}
+                          {['received', 'completed'].includes(trackedRequest.status) && (
                             <div className="relative">
-                              <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'warehouse_inspected' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
+                              <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'received' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
                               <div className="text-xs">
-                                <p className="font-bold text-stone-800 font-semibold">اكتمال فحص المستودع</p>
-                                <p className="text-[10px] text-stone-500">استلم الفاحص المنتج وتأكد من سلامة الخلل أو جودة التعبئة لتوصية التعويض.</p>
+                                <p className="font-bold text-stone-800">وصول الشحنة وتفتيش المستودع</p>
+                                <p className="text-[10px] text-stone-500">تم تفتيش المنتج في المستودع والتحقق من حالته لإصدار القرار والتسوية النهائية للعميل.</p>
                               </div>
                             </div>
                           )}
 
-                          {/* Step 5: Resolved */}
-                          {(trackedRequest.status === 'resolved_approved') && (
+                          {/* Step 5: Completed */}
+                          {(trackedRequest.status === 'completed') && (
                             <div className="relative font-bold">
                               <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-emerald-600"></span>
                               <div className="text-xs text-emerald-700">
-                                <p className="font-bold">تم تحويل مبلغ التعويض بنجاح</p>
-                                <p className="text-[10px] text-emerald-600/80">تم إصدار التسوية المالية وتحويل قيمة السلعة لحساب الآيبان البنكي الخاص بك بنجاح.</p>
+                                <p className="font-bold">تم إتمام التسوية وإغلاق الطلب بنجاح</p>
+                                <p className="text-[10px] text-emerald-600/80">تم إصدار التسوية النهائية وتغذية حسابك بالتعويض المالي أو المنتج البديل.</p>
                               </div>
                             </div>
                           )}
@@ -583,8 +812,8 @@ export default function CustomerPortal({
                   ) : (
                     <div className="text-center py-10 bg-white border border-stone-200/50 rounded-2xl p-4 text-stone-400 space-y-2">
                       <AlertCircle className="w-8 h-8 mx-auto text-stone-300" />
-                      <h4 className="text-xs font-bold text-stone-800">لا يوجد تتبع بهذا الرقم</h4>
-                      <p className="text-[10px] text-stone-500 max-w-xs mx-auto">أدخل رمزاً صالحاً للتتبع مثل <span className="font-bold font-mono">HAL-1024</span> أو <span className="font-bold font-mono">HAL-1025</span> لرؤية التحديثات الجارية.</p>
+                      <h4 className="text-xs font-bold text-stone-800">لا يوجد تتبع مطابق للبيانات</h4>
+                      <p className="text-[10px] text-stone-500 max-w-xs mx-auto font-sans leading-relaxed">يرجى إدخال كود تتبع صحيح (مثل <span className="font-bold font-mono">HAL-1024</span> أو <span className="font-bold font-mono">HAL-1025</span>) مع الجوال المسجل بالطلب.</p>
                     </div>
                   )}
                 </div>

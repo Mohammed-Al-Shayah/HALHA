@@ -103,30 +103,46 @@ export default function App() {
 
         // Compile Arabic timeline texts for audit logs
         switch (newStatus) {
-          case 'pending_warehouse':
-            eventTitle = 'قبول مبدئي وإصدار بوليصة شحن';
-            eventDesc = `تم تدقيق المستندات من الدعم وتوليد بوليصة الشحن رقم (SMSA-9382210) لإعادة السلعة للمستودع.`;
+          case 'new':
+            eventTitle = 'تم إنشاء الطلب';
+            eventDesc = 'تم تقديم الطلب بنجاح وهو قيد المراجعة المبدئية.';
             break;
-          case 'escalated_owner':
+          case 'under_review':
+            eventTitle = 'قيد المراجعة والتدقيق';
+            eventDesc = 'يجري فحص ودراسة تفاصيل ومرفقات الطلب من فريق الدعم الفني.';
+            break;
+          case 'waiting_customer_info':
+            eventTitle = 'بانتظار معلومات العميل';
+            eventDesc = `مطلوب معلومات إضافية من العميل: ${additionalData?.infoRequestedDetails || ''}`;
+            break;
+          case 'escalated_to_owner':
             eventTitle = 'تصعيد الحالة للإدارة العليا ومراجعة المالك';
             eventDesc = `تم الرفع لصاحب المتجر للموافقة الاستثنائية. مبرر الرفع: ${additionalData?.escalationReason || ''}`;
             isInternalEvent = true; // Internal: masked from customer
             break;
-          case 'warehouse_inspected':
-            eventTitle = 'استلام الشحنة وإتمام التفتيش الفني';
+          case 'approved':
+            eventTitle = 'قبول مبدئي وتنسيق الشحن';
+            eventDesc = 'تمت الموافقة المبدئية على طلبكم، وجاري تنسيق استلام الشحنة العكسية للمستودع.';
+            break;
+          case 'rejected':
+            eventTitle = 'رفض الطلب وإغلاقه بشكل نهائي';
+            eventDesc = 'تم رفض طلب التعويض وتوضيح المبررات التنظيمية للعميل.';
+            break;
+          case 'received':
+            eventTitle = 'استلام الشحنة في المستودع';
             const condText = 
               additionalData?.inspection?.condition === 'clean_restock' ? 'سليم وجاهز لإعادة البيع' :
               additionalData?.inspection?.condition === 'damaged_scrap' ? 'تالف وإتلاف فوري' :
               additionalData?.inspection?.condition === 'used_discount' ? 'مستعمل خفيف - تصنيف مخفض' : 'منتج خاطئ';
-            eventDesc = `تم فحص المنتج بالمستودع. حالة المنتج: ${condText}. تقرير الفحص: ${additionalData?.inspection?.notes || ''}`;
+            eventDesc = `وصل المنتج للمستودع وتم فحصه. الحالة: ${condText}. تقرير الفحص: ${additionalData?.inspection?.notes || ''}`;
             break;
-          case 'resolved_approved':
-            eventTitle = 'الموافقة النهائية وتحويل المستحقات البنكيّة';
-            eventDesc = `تم اعتماد القرار النهائي بالموافقة وإصدار إيصال تحويل الحساب البنكي وإغلاق الطلب بنجاح.`;
+          case 'completed':
+            eventTitle = 'اعتماد التسوية وإكمال الطلب';
+            eventDesc = 'تمت الموافقة النهائية واعتماد إكمال الإجراء والتسوية المالية/العينية للطلب بنجاح.';
             break;
-          case 'resolved_rejected':
-            eventTitle = 'رفض الطلب وإغلاقه بشكل نهائي';
-            eventDesc = `تم رفض طلب التعويض وتوضيح المبررات التنظيمية للعميل.`;
+          case 'cancelled':
+            eventTitle = 'إلغاء الطلب';
+            eventDesc = 'تم إلغاء الطلب وإغلاق ملف العملية بشكل نهائي.';
             break;
         }
 
@@ -162,12 +178,15 @@ export default function App() {
         let pendingDiff = 0;
         let escalatedDiff = 0;
 
-        // Calculate pending and escalated changes based on transitioning
-        if (req.status === 'pending_support' && newStatus === 'pending_warehouse') pendingDiff = -1;
-        if (req.status === 'pending_support' && newStatus === 'escalated_owner') { pendingDiff = -1; escalatedDiff = 1; }
-        if (req.status === 'escalated_owner' && newStatus === 'resolved_approved') escalatedDiff = -1;
-        if (req.status === 'escalated_owner' && newStatus === 'resolved_rejected') escalatedDiff = -1;
-        if (req.status === 'warehouse_inspected' && newStatus === 'resolved_approved') pendingDiff = -1;
+        const isOldPending = ['new', 'under_review', 'waiting_customer_info', 'approved', 'received'].includes(req.status);
+        const isNewPending = ['new', 'under_review', 'waiting_customer_info', 'approved', 'received'].includes(newStatus);
+        const isOldEscalated = req.status === 'escalated_to_owner';
+        const isNewEscalated = newStatus === 'escalated_to_owner';
+
+        if (isOldPending && !isNewPending) pendingDiff = -1;
+        if (!isOldPending && isNewPending) pendingDiff = 1;
+        if (isOldEscalated && !isNewEscalated) escalatedDiff = -1;
+        if (!isOldEscalated && isNewEscalated) escalatedDiff = 1;
 
         return {
           ...store,
@@ -179,6 +198,10 @@ export default function App() {
         };
       })
     );
+  };
+
+  const handleUpdateFullRequest = (updatedRequest: CustomerRequest) => {
+    setRequests((prev) => prev.map((r) => r.id === updatedRequest.id ? updatedRequest : r));
   };
 
   return (
@@ -208,6 +231,7 @@ export default function App() {
             requests={requests.filter(r => r.storeId === 'store-1')} // Filter to Najd Coffee mock for high-fidelity merchant simulation
             teamMembers={teamMembers}
             onUpdateRequestStatus={handleUpdateRequestStatus}
+            onUpdateRequest={handleUpdateFullRequest}
           />
         )}
 
@@ -215,6 +239,7 @@ export default function App() {
           <CustomerPortal
             requests={requests}
             onSubmitNewRequest={handleAddRequestFromCustomer}
+            onUpdateRequest={handleUpdateFullRequest}
           />
         )}
       </main>

@@ -141,14 +141,14 @@ export const initialRequests: CustomerRequest[] = [
         image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=120&auto=format&fit=crop',
       },
     ],
-    status: 'pending_support',
+    status: 'new',
     internalNotes: 'العميل تواصل عبر الواتساب وغاضب من سوء الشحن. نعتذر منه ونعالج الطلب بسرعة.',
     createdAt: '2026-06-26T14:30:00Z',
     updatedAt: '2026-06-26T14:30:00Z',
     timeline: [
       {
         id: 'ev-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'تقديم طلب الاسترجاع',
         descriptionAr: 'قام العميل بتقديم طلب استرجاع بقيمة ١٣٦ ر.س لمنتج بن إثيوبي مغسول.',
         createdAt: '2026-06-26T14:30:00Z',
@@ -177,7 +177,7 @@ export const initialRequests: CustomerRequest[] = [
         reason: 'أرغب باستبدال المطحنة بمطحنة كهربائية مع دفع الفارق، حيث لم تناسبني اليدوية.',
       },
     ],
-    status: 'escalated_owner',
+    status: 'escalated_to_owner',
     escalationReason: 'تجاوز فترة الاسترجاع المسموحة (١٥ يوماً)، العميل يطالب باستثناء لوجود عيب مصنعي مزعوم في التروس.',
     internalNotes: 'العميل تجاوز فترة الاسترجاع بـ ٣ أيام. قمت برفعه للمالك لطلب استثناء خاص لرفع رضا العميل.',
     createdAt: '2026-06-25T09:15:00Z',
@@ -185,7 +185,7 @@ export const initialRequests: CustomerRequest[] = [
     timeline: [
       {
         id: 'ev-2-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'تقديم طلب الاستبدال',
         descriptionAr: 'قام العميل بتقديم طلب استبدال للمطحنة اليدوية بموديل آخر.',
         createdAt: '2026-06-25T09:15:00Z',
@@ -194,7 +194,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-2-2',
-        status: 'escalated_owner',
+        status: 'escalated_to_owner',
         titleAr: 'تصعيد الطلب للإدارة العليا',
         descriptionAr: 'تم الرفع لصاحب المتجر للموافقة على استثناء لتخطي فترة الـ ١٥ يوماً المسموحة.',
         createdAt: '2026-06-25T11:40:00Z',
@@ -224,14 +224,14 @@ export const initialRequests: CustomerRequest[] = [
         image: 'https://images.unsplash.com/photo-1577968897966-3d4325b36b61?q=80&w=120&auto=format&fit=crop',
       },
     ],
-    status: 'pending_warehouse',
-    internalNotes: 'تم إرسال بوليصة الشحن العكسي للعميل عبر سمسا. في انتظار وصول الغلاية لفحصها بالمستودع والتأكد من الخلل.',
+    status: 'approved',
+    internalNotes: 'تمت الموافقة على الطلب. في انتظار وصول السلعة للمستودع لإتمام الفحص والتحقق من الخلل.',
     createdAt: '2026-06-24T16:00:00Z',
     updatedAt: '2026-06-24T18:20:00Z',
     timeline: [
       {
         id: 'ev-3-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'تقديم طلب الاسترجاع',
         descriptionAr: 'تم تقديم طلب استرجاع لغلاية الترشيح المعطلة.',
         createdAt: '2026-06-24T16:00:00Z',
@@ -240,7 +240,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-3-2',
-        status: 'pending_warehouse',
+        status: 'approved',
         titleAr: 'الموافقة المبدئية وتوليد بوليصة الشحن',
         descriptionAr: 'تمت الموافقة المبدئية وإصدار بوليصة شحن مرتجع رقم (SMSA-8742239). الطلب قيد الشحن الآن للمستودع.',
         createdAt: '2026-06-24T18:20:00Z',
@@ -269,14 +269,14 @@ export const initialRequests: CustomerRequest[] = [
         reason: 'الميزان يعطي قراءات خاطئة وغير دقيقة مقارنة بميزان آخر متوفر لدي.',
       },
     ],
-    status: 'warehouse_inspected',
+    status: 'received',
     internalNotes: 'تم استلام المنتج في المستودع وقام بندر بفحصه وتأكيد الخلل البرمجي في الحساس.',
     createdAt: '2026-06-23T08:00:00Z',
     updatedAt: '2026-06-24T10:15:00Z',
     timeline: [
       {
         id: 'ev-4-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'تقديم الطلب',
         descriptionAr: 'طلب استرجاع للميزان الرقمي الذكي.',
         createdAt: '2026-06-23T08:00:00Z',
@@ -285,7 +285,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-4-2',
-        status: 'pending_warehouse',
+        status: 'approved',
         titleAr: 'توليد بوليصة الشحن',
         descriptionAr: 'تم توليد بوليصة الشحن العكسي وإرسالها للعميل.',
         createdAt: '2026-06-23T11:00:00Z',
@@ -294,7 +294,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-4-3',
-        status: 'warehouse_inspected',
+        status: 'received',
         titleAr: 'وصول الشحنة وتفتيش المستودع',
         descriptionAr: 'تم تفتيش المنتج في المستودع. حالة الفحص: تالف بسبب عيب مصنعي في الحساس الداخلي. تمت التوصية بالتعويض المالي المباشر.',
         createdAt: '2026-06-24T10:15:00Z',
@@ -306,7 +306,7 @@ export const initialRequests: CustomerRequest[] = [
       inspectedBy: 'بندر العتيبي',
       inspectedAt: '2026-06-24T10:15:00Z',
       condition: 'damaged_scrap',
-      notes: 'تم فحص الميزان بوضع أوزان عيارية وتأكد وجود خلل قراءة بفارق كبير (+٣٠ غرام). تم إتلاف السلعة والتوصية بال refund المباشر.',
+      notes: 'تم فحص الميزان بوضع أوزان عيارية وتأكد وجود خلل قراءة بفارق كبير (+٣٠ غرام). تم إتلاف السلعة والتوصية بالتعويض المباشر.',
     },
   },
   {
@@ -330,14 +330,14 @@ export const initialRequests: CustomerRequest[] = [
         image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=120&auto=format&fit=crop',
       },
     ],
-    status: 'resolved_approved',
+    status: 'completed',
     internalNotes: 'المنتج رجع سليم ١٠٠٪ ومقفل بكرتون الوكالة. تم إرجاعه للمخزن لبيعه مجدداً وتحويل المبلغ لحساب العميل.',
     createdAt: '2026-06-20T10:00:00Z',
     updatedAt: '2026-06-22T15:30:00Z',
     timeline: [
       {
         id: 'ev-5-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'تقديم الطلب',
         descriptionAr: 'طلب استرجاع كوب سيراميك لعدم الرغبة.',
         createdAt: '2026-06-20T10:00:00Z',
@@ -346,7 +346,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-5-2',
-        status: 'pending_warehouse',
+        status: 'approved',
         titleAr: 'قبول الشحن والمتابعة',
         descriptionAr: 'تم إصدار بوليصة شحن وتنسيق الاستلام.',
         createdAt: '2026-06-21T09:00:00Z',
@@ -355,7 +355,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-5-3',
-        status: 'warehouse_inspected',
+        status: 'received',
         titleAr: 'تفتيش المستودع والموافقة',
         descriptionAr: 'المنتج سليم تماماً وبحالة الوكالة وتمت إعادته لخط المخزون المتوفر للبيع.',
         createdAt: '2026-06-22T11:00:00Z',
@@ -364,7 +364,7 @@ export const initialRequests: CustomerRequest[] = [
       },
       {
         id: 'ev-5-4',
-        status: 'resolved_approved',
+        status: 'completed',
         titleAr: 'تحويل المبلغ وإغلاق الطلب',
         descriptionAr: 'تم تحويل مبلغ ٩٥ ر.س إلى حساب العميل البنكي المنتهي بـ ٥٥٦٦ وإرسال إيصال التحويل.',
         createdAt: '2026-06-22T15:30:00Z',
@@ -398,13 +398,13 @@ export const initialRequests: CustomerRequest[] = [
         reason: 'المقاس ضيق جداً في الأكمام، وأرغب باستبدالها بمقاس ٥٦ من نفس الموديل.',
       },
     ],
-    status: 'pending_support',
+    status: 'under_review',
     createdAt: '2026-06-26T18:00:00Z',
     updatedAt: '2026-06-26T18:00:00Z',
     timeline: [
       {
         id: 'ev-6-1',
-        status: 'created',
+        status: 'new',
         titleAr: 'طلب استبدال مقاس',
         descriptionAr: 'تقدمت العميلة بطلب استبدال مقاس العباية الكتان من ٥٤ إلى ٥٦.',
         createdAt: '2026-06-26T18:00:00Z',

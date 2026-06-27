@@ -6,12 +6,15 @@
 export type RequestType = 'return' | 'exchange' | 'complaint';
 
 export type RequestStatus =
-  | 'pending_support'      // قيد المراجعة - الدعم الفني
-  | 'escalated_owner'      // مرفوع لصاحب المتجر (داخلي، العميل يرى: قيد المراجعة من إدارة المتجر)
-  | 'pending_warehouse'    // بانتظار الشحن/وصول المنتج للمستودع
-  | 'warehouse_inspected'  // تم التفتيش في المستودع
-  | 'resolved_approved'    // مقبول وتم تسوية الطلب (مكتمل)
-  | 'resolved_rejected';   // مرفوض ومغلق
+  | 'new'                     // جديد
+  | 'under_review'            // قيد المراجعة
+  | 'waiting_customer_info'   // بانتظار معلومات العميل
+  | 'escalated_to_owner'      // مرفوع لصاحب المتجر
+  | 'approved'                // مقبول
+  | 'rejected'                // مرفوض
+  | 'received'                // تم الاستلام بالمستودع
+  | 'completed'               // مكتمل
+  | 'cancelled';              // ملغي
 
 export type InspectionCondition =
   | 'clean_restock'   // سليم - إعادة للمخزون
@@ -47,6 +50,15 @@ export interface RequestItem {
   image?: string;
 }
 
+export interface RequestMessage {
+  id: string;
+  sender: 'merchant' | 'customer';
+  senderName: string;
+  text: string;
+  createdAt: string;
+  photoUrl?: string;
+}
+
 export interface CustomerRequest {
   id: string; // مثال: HAL-3904
   storeId: string;
@@ -66,6 +78,7 @@ export interface CustomerRequest {
   updatedAt: string;
   timeline: TimelineEvent[];
   inspection?: WarehouseInspection;
+  messages?: RequestMessage[];
 }
 
 export interface Store {
