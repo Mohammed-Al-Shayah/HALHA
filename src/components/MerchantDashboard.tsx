@@ -86,7 +86,7 @@ export default function MerchantDashboard({
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Warehouse Inspection Form States
-  const [inspectionCondition, setInspectionCondition] = useState<InspectionCondition>('clean_restock');
+  const [inspectionCondition, setInspectionCondition] = useState<InspectionCondition>('good_condition');
   const [inspectionNotes, setInspectionNotes] = useState('');
 
   // Store Settings (with robust state for previewing the portal)
@@ -336,7 +336,7 @@ export default function MerchantDashboard({
         return (
           <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>
-            مقبول وبانتظار الشحن
+            مقبول وبانتظار الاستلام
           </span>
         );
       case 'received':
@@ -350,7 +350,7 @@ export default function MerchantDashboard({
         return (
           <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/30 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-emerald-600 rounded-full"></span>
-            مكتمل ومسوى
+            مكتمل
           </span>
         );
       case 'rejected':
@@ -629,18 +629,21 @@ export default function MerchantDashboard({
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-stone-500 font-medium">حالة السلعة المفحوصة:</span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          selectedRequest.inspection.condition === 'clean_restock'
+                          selectedRequest.inspection.condition === 'good_condition'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                            : selectedRequest.inspection.condition === 'used_discount'
+                            : selectedRequest.inspection.condition === 'used'
                               ? 'bg-amber-50 text-amber-700 border border-amber-100'
                               : selectedRequest.inspection.condition === 'wrong_item'
                                 ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                : 'bg-rose-50 text-rose-700 border border-rose-100'
+                                : selectedRequest.inspection.condition === 'missing_accessories'
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-100'
                         }`}>
-                          {selectedRequest.inspection.condition === 'clean_restock' && 'ممتازة - تعاد مباشرة للرفوف'}
-                          {selectedRequest.inspection.condition === 'used_discount' && 'بها عيب بسيط - بيع مخفض'}
-                          {selectedRequest.inspection.condition === 'wrong_item' && 'منتج خاطئ - سيتم إعادته للعميل'}
-                          {selectedRequest.inspection.condition === 'damaged_scrap' && 'تالفة كلياً - إتلاف وتخريد'}
+                          {selectedRequest.inspection.condition === 'good_condition' && 'ممتازة (بحالة جديدة للرفوف)'}
+                          {selectedRequest.inspection.condition === 'used' && 'مستخدم (به آثار استخدام خفيفة)'}
+                          {selectedRequest.inspection.condition === 'damaged' && 'تالف (به تلفيات أو كسور واضحة)'}
+                          {selectedRequest.inspection.condition === 'wrong_item' && 'منتج خاطئ (غير مطابق للسلعة الأصلية)'}
+                          {selectedRequest.inspection.condition === 'missing_accessories' && 'نقص ملحقات (العناصر المرفقة ناقصة)'}
                         </span>
                       </div>
                       <div className="text-xs bg-stone-50 p-2.5 rounded-lg text-stone-700 leading-relaxed font-mono">
@@ -1199,7 +1202,7 @@ export default function MerchantDashboard({
                           <option value="under_review">قيد التدقيق</option>
                           <option value="waiting_customer_info">بانتظار معلومات العميل</option>
                           <option value="escalated_to_owner">مصعّد للمالك</option>
-                          <option value="approved">مقبول - بانتظار الشحن</option>
+                          <option value="approved">مقبول - بانتظار الاستلام</option>
                           <option value="received">مستلم بالمستودع</option>
                           <option value="completed">مكتمل</option>
                           <option value="rejected">مرفوض</option>
@@ -1669,7 +1672,7 @@ export default function MerchantDashboard({
                       </div>
 
                       <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
-                        <span className="text-stone-400 text-xs font-semibold">تذاكر مستلمة بانتظار تسوية المالك</span>
+                        <span className="text-stone-400 text-xs font-semibold">تذاكر مستلمة بانتظار مراجعة المالك</span>
                         <p className="text-4xl font-bold font-mono text-stone-900 mt-2">{receivedWarehouseCount}</p>
                         <p className="text-[10px] text-stone-400 mt-2 font-medium">تقارير تفتيش المستودع مدفوعة بنجاح</p>
                       </div>
