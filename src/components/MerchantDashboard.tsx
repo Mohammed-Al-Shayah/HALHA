@@ -52,6 +52,7 @@ interface MerchantDashboardProps {
     }
   ) => void;
   onUpdateRequest?: (updatedRequest: CustomerRequest) => void;
+  lang: 'ar' | 'en';
 }
 
 export default function MerchantDashboard({
@@ -60,6 +61,7 @@ export default function MerchantDashboard({
   teamMembers,
   onUpdateRequestStatus,
   onUpdateRequest,
+  lang,
 }: MerchantDashboardProps) {
   // Navigation tabs based on role
   const [ownerTab, setOwnerTab] = useState<'dashboard' | 'requests' | 'escalated' | 'reports' | 'settings' | 'team'>('dashboard');

@@ -33,6 +33,7 @@ interface AdminPanelProps {
   requests: CustomerRequest[];
   onCreateStore: (newStore: Omit<Store, 'createdAt' | 'requestsCount'>) => void;
   onToggleStoreStatus: (storeId: string) => void;
+  lang: 'ar' | 'en';
 }
 
 export default function AdminPanel({
@@ -40,6 +41,7 @@ export default function AdminPanel({
   requests,
   onCreateStore,
   onToggleStoreStatus,
+  lang,
 }: AdminPanelProps) {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminUsername, setAdminUsername] = useState('admin@halha.com');

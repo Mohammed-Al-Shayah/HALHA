@@ -4,6 +4,8 @@
  */
 
 import React, { useState } from 'react';
+import { MotionConfig, AnimatePresence, motion } from 'motion/react';
+import { easePremium, durationNormal } from './motionTokens';
 import { initialStores, initialRequests, initialTeamMembers } from './data/mockData';
 import { Store, CustomerRequest, RequestStatus, RequestType, InspectionCondition } from './types';
 import RoleSelector from './components/RoleSelector';
@@ -11,15 +13,22 @@ import AdminPanel from './components/AdminPanel';
 import MerchantDashboard from './components/MerchantDashboard';
 import CustomerPortal from './components/CustomerPortal';
 import { MerchantLoginMock, ActivateAccountMock } from './components/MerchantAuthMock';
+import LandingPage from './components/LandingPage';
+import SplashScreen from './components/SplashScreen';
+import AnimatedBackground from './components/AnimatedBackground';
 
 export default function App() {
+  // Splash screen state
+  const [splashComplete, setSplashComplete] = useState(false);
+
   // Global React state
   const [stores, setStores] = useState<Store[]>(initialStores);
   const [requests, setRequests] = useState<CustomerRequest[]>(initialRequests);
   const [teamMembers] = useState(initialTeamMembers);
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   // Active view state
-  const [currentArea, setCurrentArea] = useState<'merchant' | 'admin' | 'customer'>('merchant');
+  const [currentArea, setCurrentArea] = useState<'landing' | 'merchant' | 'admin' | 'customer'>('landing');
   const [merchantRole, setMerchantRole] = useState<'store_owner' | 'customer_support' | 'warehouse_agent'>('store_owner');
   const [merchantSubView, setMerchantSubView] = useState<'dashboard' | 'login' | 'activate'>('dashboard');
 
@@ -81,71 +90,110 @@ export default function App() {
         if (req.id !== requestId) return req;
 
         const updatedTimeline = [...req.timeline];
-        let eventTitle = '';
-        let eventDesc = '';
+        let eventTitleAr = '';
+        let eventDescAr = '';
+        let eventTitleEn = '';
+        let eventDescEn = '';
         let isInternalEvent = false;
 
         // Determine current actor name
-        let actorName = 'النظام (تلقائي)';
+        let actorNameAr = 'النظام (تلقائي)';
+        let actorNameEn = 'System (Auto)';
         if (currentArea === 'merchant') {
-          if (merchantRole === 'store_owner') actorName = 'عبدالرحمن آل سعود (المالك)';
-          else if (merchantRole === 'customer_support') actorName = 'أحمد القحطاني (دعم العملاء)';
-          else if (merchantRole === 'warehouse_agent') actorName = 'بندر العتيبي (أخصائي المستودع)';
+          if (merchantRole === 'store_owner') {
+            actorNameAr = 'عبدالرحمن آل سعود (المالك)';
+            actorNameEn = 'Abdulrahman Al Saud (Owner)';
+          } else if (merchantRole === 'customer_support') {
+            actorNameAr = 'أحمد القحطاني (دعم العملاء)';
+            actorNameEn = 'Ahmad Al-Qahtani (Customer Support)';
+          } else if (merchantRole === 'warehouse_agent') {
+            actorNameAr = 'بندر العتيبي (أخصائي المستودع)';
+            actorNameEn = 'Bandar Al-Otaibi (Warehouse Specialist)';
+          }
+        } else if (currentArea === 'customer') {
+          actorNameAr = 'العميل';
+          actorNameEn = 'Customer';
         }
 
-        // Compile Arabic timeline texts for audit logs
+        // Compile bilingual timeline texts for audit logs
         switch (newStatus) {
           case 'new':
-            eventTitle = 'تم إنشاء الطلب';
-            eventDesc = 'تم تقديم الطلب بنجاح وهو قيد المراجعة المبدئية.';
+            eventTitleAr = 'تم إنشاء الطلب';
+            eventDescAr = 'تم تقديم الطلب بنجاح وهو قيد المراجعة المبدئية.';
+            eventTitleEn = 'Request Created';
+            eventDescEn = 'The request was submitted successfully and is under initial review.';
             break;
           case 'under_review':
-            eventTitle = 'قيد المراجعة والتدقيق';
-            eventDesc = 'يجري فحص ودراسة تفاصيل ومرفقات الطلب من فريق الدعم الفني.';
+            eventTitleAr = 'قيد المراجعة والتدقيق';
+            eventDescAr = 'يجري فحص ودراسة تفاصيل ومرفقات الطلب من فريق الدعم الفني.';
+            eventTitleEn = 'Under Review';
+            eventDescEn = 'Details and attachments are being reviewed by the technical support team.';
             break;
           case 'waiting_customer_info':
-            eventTitle = 'بانتظار معلومات العميل';
-            eventDesc = `مطلوب معلومات إضافية من العميل: ${additionalData?.infoRequestedDetails || ''}`;
+            eventTitleAr = 'بانتظار معلومات العميل';
+            eventDescAr = `مطلوب معلومات إضافية من العميل: ${additionalData?.infoRequestedDetails || ''}`;
+            eventTitleEn = 'Waiting for Customer Info';
+            eventDescEn = `Additional information requested: ${additionalData?.infoRequestedDetails || ''}`;
             break;
           case 'escalated_to_owner':
-            eventTitle = 'تصعيد الحالة للإدارة العليا ومراجعة المالك';
-            eventDesc = `تم الرفع لصاحب المتجر للموافقة الاستثنائية. مبرر الرفع: ${additionalData?.escalationReason || ''}`;
+            eventTitleAr = 'تصعيد الحالة للإدارة العليا ومراجعة المالك';
+            eventDescAr = `تم الرفع لصاحب المتجر للموافقة الاستثنائية. مبرر الرفع: ${additionalData?.escalationReason || ''}`;
+            eventTitleEn = 'Escalated to Store Owner';
+            eventDescEn = `Escalated to management for review. Reason: ${additionalData?.escalationReason || ''}`;
             isInternalEvent = true; // Internal: masked from customer
             break;
           case 'approved':
-            eventTitle = 'قبول مبدئي ومتابعة الطلب';
-            eventDesc = 'تمت الموافقة المبدئية على طلبكم، وجاري متابعة الخطوات التالية لتسليم المنتج للمستودع.';
+            eventTitleAr = 'قبول مبدئي ومتابعة الطلب';
+            eventDescAr = 'تمت الموافقة المبدئية على طلبكم، وجاري متابعة الخطوات التالية لتسليم المنتج للمستودع.';
+            eventTitleEn = 'Approved - Waiting for Pickup';
+            eventDescEn = 'Initial approval granted. Processing steps to receive the item at our warehouse.';
             break;
           case 'rejected':
-            eventTitle = 'رفض الطلب وإغلاقه';
-            eventDesc = 'تم رفض الطلب وتوضيح المبررات التنظيمية للعميل.';
+            eventTitleAr = 'رفض الطلب وإغلاقه';
+            eventDescAr = 'تم رفض الطلب وتوضيح المبررات التنظيمية للعميل.';
+            eventTitleEn = 'Request Rejected';
+            eventDescEn = 'Request was rejected. Explanatory details have been provided.';
             break;
           case 'received':
-            eventTitle = 'استلام المنتج في المستودع';
-            const condText = 
+            eventTitleAr = 'استلام المنتج في المستودع';
+            const condTextAr = 
               additionalData?.inspection?.condition === 'good_condition' ? 'سليم وبحالة ممتازة' :
               additionalData?.inspection?.condition === 'damaged' ? 'تالف' :
               additionalData?.inspection?.condition === 'used' ? 'مستعمل' :
               additionalData?.inspection?.condition === 'wrong_item' ? 'منتج خاطئ' : 'نقص ملحقات/إكسسوارات';
-            eventDesc = `وصل المنتج للمستودع وتم فحصه. الحالة: ${condText}. تقرير الفحص: ${additionalData?.inspection?.notes || ''}`;
+            eventDescAr = `وصل المنتج للمستودع وتم فحصه. الحالة: ${condTextAr}. تقرير الفحص: ${additionalData?.inspection?.notes || ''}`;
+            
+            eventTitleEn = 'Item Received in Warehouse';
+            const condTextEn = 
+              additionalData?.inspection?.condition === 'good_condition' ? 'Excellent (like new)' :
+              additionalData?.inspection?.condition === 'damaged' ? 'Damaged' :
+              additionalData?.inspection?.condition === 'used' ? 'Used' :
+              additionalData?.inspection?.condition === 'wrong_item' ? 'Wrong item' : 'Missing accessories';
+            eventDescEn = `Product arrived at warehouse and inspected. Condition: ${condTextEn}. Notes: ${additionalData?.inspection?.notes || ''}`;
             break;
           case 'completed':
-            eventTitle = 'إكمال الطلب';
-            eventDesc = 'تمت الموافقة النهائية وإكمال معالجة الطلب بنجاح حسب سياسة المتجر.';
+            eventTitleAr = 'إكمال الطلب';
+            eventDescAr = 'تمت الموافقة النهائية وإكمال معالجة الطلب بنجاح حسب سياسة المتجر.';
+            eventTitleEn = 'Request Completed';
+            eventDescEn = 'Final approval and processing have been completed according to store policy.';
             break;
           case 'cancelled':
-            eventTitle = 'إلغاء الطلب';
-            eventDesc = 'تم إلغاء الطلب وإغلاق ملف العملية بشكل نهائي.';
+            eventTitleAr = 'إلغاء الطلب';
+            eventDescAr = 'تم إلغاء الطلب وإغلاق ملف العملية بشكل نهائي.';
+            eventTitleEn = 'Request Cancelled';
+            eventDescEn = 'The request has been cancelled and closed permanently.';
             break;
         }
 
         updatedTimeline.push({
           id: `ev-${Date.now()}`,
           status: newStatus,
-          titleAr: eventTitle,
-          descriptionAr: eventDesc,
+          titleAr: eventTitleAr,
+          descriptionAr: eventDescAr,
+          titleEn: eventTitleEn,
+          descriptionEn: eventDescEn,
           createdAt: new Date().toISOString(),
-          actorName: actorName,
+          actorName: lang === 'ar' ? actorNameAr : actorNameEn,
           isInternal: isInternalEvent,
         });
 
@@ -168,115 +216,196 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col font-sans">
-      {/* Global Interactive Role Selector Bar */}
-      <RoleSelector
-        currentArea={currentArea}
-        merchantRole={merchantRole}
-        onAreaChange={setCurrentArea}
-        onMerchantRoleChange={setMerchantRole}
-      />
-
-      {/* Primary Context Workspace Canvas */}
-      <main className="flex-1">
-        {currentArea === 'admin' && (
-          <AdminPanel
-            stores={stores}
-            requests={requests}
-            onCreateStore={handleCreateStore}
-            onToggleStoreStatus={handleToggleStoreStatus}
+    <MotionConfig reducedMotion="user">
+      {!splashComplete && (
+        <SplashScreen onComplete={() => setSplashComplete(true)} lang={lang} />
+      )}
+      <AnimatedBackground />
+      
+      {splashComplete && (
+        <div className="min-h-screen bg-transparent flex flex-col font-sans animate-fade-in" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          {/* Global Interactive Role Selector Bar */}
+          <RoleSelector
+            currentArea={currentArea}
+            merchantRole={merchantRole}
+            onAreaChange={setCurrentArea}
+            onMerchantRoleChange={setMerchantRole}
+            lang={lang}
+            onLangChange={setLang}
           />
-        )}
 
-        {currentArea === 'merchant' && (
-          <div className="flex flex-col gap-4">
-            {/* Sub-view Selector for Auth Prototype Screens */}
-            <div className="bg-stone-100 border-b border-stone-200/60 py-2 px-4 md:px-8">
-              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-                <span className="text-[11px] text-stone-500 font-medium">عرض صفحات النموذج الأولي (UI Prototype Pages):</span>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setMerchantSubView('dashboard')}
-                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
-                      merchantSubView === 'dashboard'
-                        ? 'bg-teal-600 text-white font-bold shadow-sm'
-                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-                    }`}
-                  >
-                    لوحة تحكم المتجر (Dashboard)
-                  </button>
-                  <button
-                    onClick={() => setMerchantSubView('login')}
-                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
-                      merchantSubView === 'login'
-                        ? 'bg-teal-600 text-white font-bold shadow-sm'
-                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-                    }`}
-                  >
-                    تسجيل دخول التاجر (Merchant Login)
-                  </button>
-                  <button
-                    onClick={() => setMerchantSubView('activate')}
-                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
-                      merchantSubView === 'activate'
-                        ? 'bg-teal-600 text-white font-bold shadow-sm'
-                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-                    }`}
-                  >
-                    تنشيط الحساب (Activate Account)
-                  </button>
-                </div>
+          {/* Primary Context Workspace Canvas */}
+          <main className="flex-1 relative">
+            <AnimatePresence mode="wait">
+              {currentArea === 'landing' && (
+                <motion.div
+                  key="landing"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: durationNormal, ease: easePremium }}
+                >
+                  <LandingPage
+                    onStartDemo={() => setCurrentArea('merchant')}
+                    lang={lang}
+                  />
+                </motion.div>
+              )}
+
+              {currentArea === 'admin' && (
+                <motion.div
+                  key="admin"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: durationNormal, ease: easePremium }}
+                >
+                  <AdminPanel
+                    stores={stores}
+                    requests={requests}
+                    onCreateStore={handleCreateStore}
+                    onToggleStoreStatus={handleToggleStoreStatus}
+                    lang={lang}
+                  />
+                </motion.div>
+              )}
+
+              {currentArea === 'merchant' && (
+                <motion.div
+                  key="merchant"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: durationNormal, ease: easePremium }}
+                  className="flex flex-col gap-4"
+                >
+                  {/* Sub-view Selector for Auth Prototype Screens */}
+                  <div className="bg-stone-100 border-b border-stone-200/60 py-2 px-4 md:px-8">
+                    <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+                      <span className="text-[11px] text-stone-500 font-medium">
+                        {lang === 'ar' ? 'عرض صفحات النموذج الأولي (UI Prototype Pages):' : 'Prototype UI Pages View:'}
+                      </span>
+                      <div className="flex gap-1.5 relative bg-white border border-stone-200/60 p-1 rounded-lg">
+                        {(['dashboard', 'login', 'activate'] as const).map((view) => {
+                          const isActive = merchantSubView === view;
+                          return (
+                            <button
+                              key={view}
+                              onClick={() => setMerchantSubView(view)}
+                              className={`relative px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors duration-200 cursor-pointer z-10 select-none ${
+                                isActive ? 'text-white font-bold' : 'text-stone-600 hover:text-stone-900'
+                              }`}
+                            >
+                              {isActive && (
+                                <motion.div
+                                  layoutId="activeSubTabIndicator"
+                                  className="absolute inset-0 bg-teal-600 rounded-md -z-10 shadow-sm shadow-teal-600/10"
+                                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                                />
+                              )}
+                              {view === 'dashboard' && (lang === 'ar' ? 'لوحة تحكم المتجر (Dashboard)' : 'Merchant Dashboard')}
+                              {view === 'login' && (lang === 'ar' ? 'تسجيل دخول التاجر (Merchant Login)' : 'Merchant Login')}
+                              {view === 'activate' && (lang === 'ar' ? 'تنشيط الحساب (Activate Account)' : 'Activate Account')}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    {merchantSubView === 'dashboard' && (
+                      <motion.div
+                        key={`merchant-dashboard-${merchantRole}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: durationNormal, ease: easePremium }}
+                      >
+                        <MerchantDashboard
+                          role={merchantRole}
+                          requests={requests.filter(r => r.storeId === 'store-1')} // Filter to Najd Coffee mock for high-fidelity merchant simulation
+                          teamMembers={teamMembers}
+                          onUpdateRequestStatus={handleUpdateRequestStatus}
+                          onUpdateRequest={handleUpdateFullRequest}
+                          lang={lang}
+                        />
+                      </motion.div>
+                    )}
+
+                    {merchantSubView === 'login' && (
+                      <motion.div
+                        key="merchant-login"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: durationNormal, ease: easePremium }}
+                        className="py-12 px-4"
+                      >
+                        <MerchantLoginMock onSuccess={() => setMerchantSubView('dashboard')} lang={lang} />
+                      </motion.div>
+                    )}
+
+                    {merchantSubView === 'activate' && (
+                      <motion.div
+                        key="merchant-activate"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: durationNormal, ease: easePremium }}
+                        className="py-12 px-4"
+                      >
+                        <ActivateAccountMock onSuccess={() => setMerchantSubView('dashboard')} lang={lang} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+
+              {currentArea === 'customer' && (
+                <motion.div
+                  key="customer"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: durationNormal, ease: easePremium }}
+                >
+                  <CustomerPortal
+                    requests={requests}
+                    onSubmitNewRequest={handleAddRequestFromCustomer}
+                    onUpdateRequest={handleUpdateFullRequest}
+                    lang={lang}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+
+          {/* Branded and Aesthetic Footer */}
+          <footer className="border-t border-stone-200/50 bg-white py-6 px-4 md:px-8 text-center text-xs text-stone-400 mt-12 select-none">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p>
+                {lang === 'ar' 
+                  ? 'حقوق الطبع والنشر © ٢٠٢٦ منصة حلّها (Hal\'ha SaaS). جميع الحقوق محفوظة.' 
+                  : 'Copyright © 2026 Hal\'ha SaaS Platform. All rights reserved.'}
+              </p>
+              <div className="flex gap-4">
+                <span className="hover:text-stone-600 transition-colors cursor-pointer">
+                  {lang === 'ar' ? 'اتفاقية استخدام الخدمة' : 'Terms of Service'}
+                </span>
+                <span className="text-stone-200">|</span>
+                <span className="hover:text-stone-600 transition-colors cursor-pointer">
+                  {lang === 'ar' ? 'سياسة الخصوصية والأمن المشفر' : 'Privacy & Security Policy'}
+                </span>
+                <span className="text-stone-200">|</span>
+                <span className="hover:text-stone-600 transition-colors cursor-pointer">
+                  {lang === 'ar' ? 'بوابة الربط الفني المفتوحة API' : 'Developer Open API Gateway'}
+                </span>
               </div>
             </div>
-
-            {merchantSubView === 'dashboard' && (
-              <MerchantDashboard
-                role={merchantRole}
-                requests={requests.filter(r => r.storeId === 'store-1')} // Filter to Najd Coffee mock for high-fidelity merchant simulation
-                teamMembers={teamMembers}
-                onUpdateRequestStatus={handleUpdateRequestStatus}
-                onUpdateRequest={handleUpdateFullRequest}
-              />
-            )}
-
-            {merchantSubView === 'login' && (
-              <div className="py-12 px-4">
-                <MerchantLoginMock onSuccess={() => setMerchantSubView('dashboard')} />
-              </div>
-            )}
-
-            {merchantSubView === 'activate' && (
-              <div className="py-12 px-4">
-                <ActivateAccountMock onSuccess={() => setMerchantSubView('dashboard')} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {currentArea === 'customer' && (
-          <CustomerPortal
-            requests={requests}
-            onSubmitNewRequest={handleAddRequestFromCustomer}
-            onUpdateRequest={handleUpdateFullRequest}
-          />
-        )}
-      </main>
-
-      {/* Branded and Aesthetic Footer */}
-      <footer className="border-t border-stone-200/50 bg-white py-6 px-4 md:px-8 text-center text-xs text-stone-400 mt-12 select-none">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>
-            حقوق الطبع والنشر &copy; ٢٠٢٦ منصة حلّها (Hal&#39;ha SaaS). جميع الحقوق محفوظة.
-          </p>
-          <div className="flex gap-4">
-            <span className="hover:text-stone-600 transition-colors">اتفاقية استخدام الخدمة</span>
-            <span className="text-stone-200">|</span>
-            <span className="hover:text-stone-600 transition-colors">سياسة الخصوصية والأمن المشفر</span>
-            <span className="text-stone-200">|</span>
-            <span className="hover:text-stone-600 transition-colors">بوابة الربط الفني المفتوحة API</span>
-          </div>
+          </footer>
         </div>
-      </footer>
-    </div>
+      )}
+    </MotionConfig>
   );
 }
