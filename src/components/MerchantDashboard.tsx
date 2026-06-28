@@ -17,24 +17,23 @@ import {
   User,
   Users,
   Settings,
-  DollarSign,
   PackageCheck,
   Search,
   MessageSquare,
-  ShieldCheck,
   Plus,
   BarChart4,
   RefreshCw,
-  Sparkles,
   Info,
   XCircle,
-  Download,
-  Printer,
-  Calendar
+  Calendar,
+  ShieldAlert,
+  Copy,
+  Check,
+  Eye
 } from 'lucide-react';
 
 interface MerchantDashboardProps {
-  role: 'owner' | 'support' | 'warehouse';
+  role: 'store_owner' | 'customer_support' | 'warehouse_agent';
   requests: CustomerRequest[];
   teamMembers: TeamMember[];
   onUpdateRequestStatus: (
@@ -62,7 +61,7 @@ export default function MerchantDashboard({
   onUpdateRequestStatus,
   onUpdateRequest,
 }: MerchantDashboardProps) {
-  // Navigation tabs
+  // Navigation tabs based on role
   const [ownerTab, setOwnerTab] = useState<'dashboard' | 'requests' | 'escalated' | 'reports' | 'settings' | 'team'>('dashboard');
   const [supportTab, setSupportTab] = useState<'dashboard' | 'requests'>('dashboard');
   const [warehouseTab, setWarehouseTab] = useState<'dashboard' | 'requests'>('dashboard');
@@ -79,463 +78,42 @@ export default function MerchantDashboard({
   const [actionNotes, setActionNotes] = useState('');
   const [escalationReasonInput, setEscalationReasonInput] = useState('');
   const [infoRequestInput, setInfoRequestInput] = useState('');
+  const [messageToCustomerInput, setMessageToCustomerInput] = useState('');
+
+  // Modals / sub-actions triggers
+  const [showEscalationModal, setShowEscalationModal] = useState(false);
+  const [showInfoRequestModal, setShowInfoRequestModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Warehouse Inspection Form States
   const [inspectionCondition, setInspectionCondition] = useState<InspectionCondition>('clean_restock');
   const [inspectionNotes, setInspectionNotes] = useState('');
 
-  // Settings mock states
-  const [returnWindow, setReturnWindow] = useState(15);
-  const [autoApproval, setAutoApproval] = useState(true);
-  const [shippingProvider, setShippingProvider] = useState('smsa');
-
-  // Report Filter states
-  const [reportStoreFilter, setReportStoreFilter] = useState<string>('all');
-  const [reportTypeFilter, setReportTypeFilter] = useState<string>('all');
-  const [reportStatusFilter, setReportStatusFilter] = useState<string>('all');
-  const [reportDateFilter, setReportDateFilter] = useState<string>('30days');
-  const [reportStartDate, setReportStartDate] = useState<string>('');
-  const [reportEndDate, setReportEndDate] = useState<string>('');
-
-  // Filter requests for reporting
-  const reportingFilteredRequests = requests.filter((req) => {
-    // Store filter
-    const matchesStore = reportStoreFilter === 'all' || req.storeName === reportStoreFilter;
-    
-    // Type filter
-    const matchesType = reportTypeFilter === 'all' || req.type === reportTypeFilter;
-    
-    // Status filter
-    const matchesStatus = reportStatusFilter === 'all' || req.status === reportStatusFilter;
-    
-    // Date filter
-    let matchesDate = true;
-    const reqDate = new Date(req.createdAt);
-    const now = new Date();
-    
-    if (reportDateFilter === '7days') {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(now.getDate() - 7);
-      matchesDate = reqDate >= sevenDaysAgo;
-    } else if (reportDateFilter === '30days') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(now.getDate() - 30);
-      matchesDate = reqDate >= thirtyDaysAgo;
-    } else if (reportDateFilter === '90days') {
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(now.getDate() - 90);
-      matchesDate = reqDate >= ninetyDaysAgo;
-    } else if (reportDateFilter === 'custom') {
-      const start = reportStartDate ? new Date(reportStartDate) : null;
-      const end = reportEndDate ? new Date(reportEndDate) : null;
-      if (start) {
-        start.setHours(0, 0, 0, 0);
-        matchesDate = matchesDate && reqDate >= start;
-      }
-      if (end) {
-        end.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && reqDate <= end;
-      }
-    }
-    
-    return matchesStore && matchesType && matchesStatus && matchesDate;
-  });
-
-  // Calculate reports stats
-  const reportsCount = reportingFilteredRequests.length;
-  const reportsApprovedCount = reportingFilteredRequests.filter(r => r.status === 'completed').length;
-  const reportsApprovedRate = reportsCount > 0 ? Math.round((reportsApprovedCount / reportsCount) * 100) : 0;
+  // Store Settings (with robust state for previewing the portal)
+  const [storeLogo, setStoreLogo] = useState('☕');
+  const [storeColor, setStoreColor] = useState('#14b8a6'); // Teal 500
+  const [welcomeMessage, setWelcomeMessage] = useState('مرحباً بك في بوابة الدعم والتعويضات الخاصة بـ نجد للقهوة المختصة. نحن هنا لضمان رضاك التام.');
+  const [returnPolicy, setReturnPolicy] = useState('يحق للعميل طلب استرجاع أو استبدال المنتجات الغذائية (كالحبوب والبن) في حال وصولها تالفة أو غير مطابقة للطلب خلال ٧ أيام من الاستلام. أما الإكسسوارات والأدوات فيمكن استرجاعها بحالتها الأصلية المغلقة خلال ١٥ يوماً.');
+  const [settingsWindow, setSettingsWindow] = useState(15);
+  const [reasons, setReasons] = useState<string[]>(['وصول تالف / كسر بالعبوة', 'طعم البن قديم / عيب جودة', 'خطأ في نوع بن الحبوب المرسل', 'المقاس / الحجم غير متوافق']);
+  const [complaints, setComplaints] = useState<string[]>(['تأخر في التوصيل عن الموعد', 'سوء تعامل شركة الشحن', 'عدم الرد على استفساري', 'مشكلة في الدفع الإلكتروني']);
   
-  const reportsTotalValue = reportingFilteredRequests.reduce((acc, r) => {
-    return acc + r.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  }, 0);
-  
-  const reportsApprovedValue = reportingFilteredRequests
-    .filter(r => r.status === 'completed')
-    .reduce((acc, r) => {
-      return acc + r.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }, 0);
+  const [newReasonInput, setNewReasonInput] = useState('');
+  const [newComplaintInput, setNewComplaintInput] = useState('');
 
-  // Get unique store names from requests
-  const uniqueStoreNames = Array.from(new Set(requests.map(r => r.storeName)));
+  // Team Management State
+  const [localTeam, setLocalTeam] = useState<TeamMember[]>(teamMembers);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberPhone, setNewMemberPhone] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'customer_support' | 'warehouse_agent'>('customer_support');
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
-  // CSV Export handler
-  const handleExportCSV = () => {
-    const headers = [
-      'رقم الطلب',
-      'المتجر',
-      'رقم الطلب الأصلي',
-      'اسم العميل',
-      'البريد الإلكتروني',
-      'الهاتف',
-      'نوع الطلب',
-      'الحالة',
-      'القيمة الإجمالية (ر.س)',
-      'تاريخ الإنشاء',
-      'تفاصيل السلع وأسباب الطلب'
-    ];
+  // Simple reports date filter
+  const [reportDateFilter, setReportDateFilter] = useState<'all' | '7days' | '30days'>('all');
 
-    const rows = reportingFilteredRequests.map(req => {
-      const typeAr = req.type === 'return' ? 'إرجاع' : req.type === 'exchange' ? 'استبدال' : 'شكوى';
-      
-      let statusAr = 'قيد الانتظار';
-      if (req.status === 'new') statusAr = 'جديد';
-      else if (req.status === 'under_review') statusAr = 'قيد المراجعة - الدعم الفني';
-      else if (req.status === 'waiting_customer_info') statusAr = 'بانتظار معلومات العميل';
-      else if (req.status === 'escalated_to_owner') statusAr = 'مرفوع لصاحب المتجر';
-      else if (req.status === 'approved') statusAr = 'مقبول وبانتظار الشحن';
-      else if (req.status === 'received') statusAr = 'تم الاستلام بالمستودع';
-      else if (req.status === 'completed') statusAr = 'مكتمل ومسوى بالكامل';
-      else if (req.status === 'rejected') statusAr = 'مرفوض ومغلق';
-      else if (req.status === 'cancelled') statusAr = 'ملغي';
-
-      const totalValue = req.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const itemsReason = req.items.map(item => `${item.name} (${item.sku}) [الكمية: ${item.quantity}، السعر: ${item.price} ر.س] - السبب: ${item.reason}`).join(' | ');
-
-      return [
-        req.id,
-        req.storeName,
-        req.orderNumber,
-        req.customerName,
-        req.customerEmail,
-        req.customerPhone,
-        typeAr,
-        statusAr,
-        totalValue,
-        new Date(req.createdAt).toLocaleDateString('ar-SA'),
-        itemsReason
-      ];
-    });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(val => {
-        const valStr = String(val ?? '');
-        if (valStr.includes(',') || valStr.includes('"') || valStr.includes('\n')) {
-          return `"${valStr.replace(/"/g, '""')}"`;
-        }
-        return valStr;
-      }).join(','))
-    ].join('\n');
-
-    // Add UTF-8 BOM so Excel opens Arabic correctly
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `تقرير_طلبات_حلها_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // PDF Export handler
-  const handleExportPDF = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('الرجاء السماح بالنوافذ المنبثقة لتوليد وتصدير تقارير الـ PDF بنجاح.');
-      return;
-    }
-
-    const todayStr = new Date().toLocaleDateString('ar-SA', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const timeStr = new Date().toLocaleTimeString('ar-SA', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-
-    const tableRowsHtml = reportingFilteredRequests.map((req) => {
-      const typeAr = req.type === 'return' ? 'إرجاع' : req.type === 'exchange' ? 'استبدال' : 'شكوى';
-      
-      let statusAr = 'قيد الانتظار';
-      let statusColor = 'text-stone-700';
-      if (req.status === 'new') {
-        statusAr = 'جديد';
-        statusColor = 'text-blue-600 font-bold';
-      } else if (req.status === 'under_review') {
-        statusAr = 'قيد المراجعة - الدعم';
-        statusColor = 'text-amber-600 font-semibold';
-      } else if (req.status === 'waiting_customer_info') {
-        statusAr = 'بانتظار العميل';
-        statusColor = 'text-yellow-600 font-medium';
-      } else if (req.status === 'escalated_to_owner') {
-        statusAr = 'مرفوع للمالك';
-        statusColor = 'text-purple-600 font-bold';
-      } else if (req.status === 'approved') {
-        statusAr = 'مقبول وبانتظار الشحن';
-        statusColor = 'text-blue-500';
-      } else if (req.status === 'received') {
-        statusAr = 'تم الاستلام بالمستودع';
-        statusColor = 'text-indigo-600';
-      } else if (req.status === 'completed') {
-        statusAr = 'مكتمل ومسوى';
-        statusColor = 'text-teal-600 font-semibold';
-      } else if (req.status === 'rejected') {
-        statusAr = 'مرفوض ومغلق';
-        statusColor = 'text-rose-600';
-      } else if (req.status === 'cancelled') {
-        statusAr = 'ملغي';
-        statusColor = 'text-stone-400';
-      }
-
-      const totalValue = req.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-      return `
-        <tr class="border-b border-stone-200 hover:bg-stone-50/50 transition">
-          <td class="px-4 py-3 text-xs font-bold text-stone-900 font-mono">${req.id}</td>
-          <td class="px-4 py-3 text-xs text-stone-700 font-semibold">${req.customerName}</td>
-          <td class="px-4 py-3 text-xs text-stone-600">${req.storeName}</td>
-          <td class="px-4 py-3 text-xs text-stone-600 font-medium">${typeAr}</td>
-          <td class="px-4 py-3 text-xs ${statusColor}">${statusAr}</td>
-          <td class="px-4 py-3 text-xs font-mono font-bold text-stone-900 text-left">${totalValue.toLocaleString('en-US')} ر.س</td>
-          <td class="px-4 py-3 text-xs text-stone-500 font-mono text-left">${new Date(req.createdAt).toLocaleDateString('ar-SA')}</td>
-        </tr>
-      `;
-    }).join('');
-
-    const storeLabel = reportStoreFilter === 'all' ? 'جميع المتاجر المتصلة' : reportStoreFilter;
-    const typeLabel = reportTypeFilter === 'all' ? 'جميع الأنواع' : (reportTypeFilter === 'return' ? 'إرجاع السلع' : reportTypeFilter === 'exchange' ? 'استبدال السلع' : 'الشكاوى والبلاغات');
-    const statusLabel = reportStatusFilter === 'all' ? 'جميع الحالات التشغيلية' : (reportStatusFilter === 'under_review' ? 'تحت التدقيق الفني' : reportStatusFilter === 'escalated_to_owner' ? 'مرفوع لصاحب العمل' : 'مكتمل ومغلق');
-    
-    let dateRangeLabel = 'كامل الفترة الزمنية';
-    if (reportDateFilter === '7days') dateRangeLabel = 'آخر ٧ أيام للعمليات';
-    else if (reportDateFilter === '30days') dateRangeLabel = 'آخر ٣٠ يوم للعمليات';
-    else if (reportDateFilter === '90days') dateRangeLabel = 'آخر ٩٠ يوم للعمليات';
-    else if (reportDateFilter === 'custom') {
-      dateRangeLabel = `الفترة من ${reportStartDate || 'البداية'} إلى ${reportEndDate || 'اليوم'}`;
-    }
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="ar" dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <title>تقرير المرتجعات الدوري والتحليلات - ${todayStr}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-        <style>
-          body {
-            font-family: 'Cairo', 'Inter', sans-serif;
-            background-color: #faf9f6;
-            color: #1c1917;
-          }
-          .font-mono {
-            font-family: 'JetBrains Mono', monospace !important;
-          }
-          @media print {
-            body {
-              background-color: #fff;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .no-print {
-              display: none !important;
-            }
-            .print-border {
-              border: 1px solid #e7e5e4 !important;
-              box-shadow: none !important;
-              border-radius: 12px !important;
-            }
-            @page {
-              size: A4;
-              margin: 15mm;
-            }
-          }
-        </style>
-      </head>
-      <body class="p-4 md:p-8 max-w-4xl mx-auto">
-        
-        <!-- Print Header / Controls -->
-        <div class="no-print mb-8 bg-stone-900 text-white rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
-          <div class="flex items-center gap-3">
-            <span class="p-2.5 bg-teal-500/20 text-teal-400 rounded-xl font-bold text-lg">📊</span>
-            <div>
-              <h4 class="text-sm font-bold text-white">معاينة وتصدير التقرير الدوري الذكي كـ PDF</h4>
-              <p class="text-xs text-stone-400 mt-1">تأكد من اختيار <strong>"حفظ بتنسيق PDF"</strong> كوجهة طباعة، وتفعيل خيار <strong>"رسومات الخلفية"</strong> للحصول على التصميم الكامل والملون.</p>
-            </div>
-          </div>
-          <div class="flex gap-2 w-full md:w-auto justify-end">
-            <button onclick="window.close()" class="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold rounded-xl transition cursor-pointer">إغلاق</button>
-            <button onclick="window.print()" class="px-5 py-2.5 bg-teal-500 hover:bg-teal-600 text-stone-950 text-xs font-extrabold rounded-xl transition shadow-lg cursor-pointer">طباعة وحفظ التقرير 📥</button>
-          </div>
-        </div>
-
-        <!-- Official Report Wrapper -->
-        <div class="print-border border border-stone-200 rounded-2xl p-6 md:p-8 space-y-8 bg-white shadow-sm relative overflow-hidden">
-          
-          <div class="absolute -top-16 -right-16 w-48 h-48 bg-teal-50 rounded-full blur-2xl opacity-40"></div>
-          
-          <!-- Report Title and Meta Header -->
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-stone-200 pb-6 relative gap-4">
-            <div>
-              <div class="flex items-center gap-2 mb-2">
-                <div class="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center text-white font-black text-base shadow-sm">ح</div>
-                <span class="text-sm font-extrabold text-stone-900 tracking-tight">حلّها | <span class="text-teal-600">Hal-ha Operations</span></span>
-              </div>
-              <h1 class="text-xl font-bold text-stone-950 mt-4 tracking-tight">تقرير عمليات المرتجعات والشكاوى الدوري</h1>
-              <p class="text-xs text-stone-500 mt-1 font-medium">وثيقة عملياتية لتدقيق مؤشرات المرتجعات وتقييم جودة سلاسل الإمداد والخدمات.</p>
-            </div>
-            
-            <div class="text-right space-y-1 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-stone-100">
-              <span class="inline-block px-3 py-1 bg-teal-50 border border-teal-100 text-teal-800 text-[10px] font-bold rounded-full mb-2">معتمد من الإدارة العليا</span>
-              <p class="text-xs text-stone-600 font-medium">تاريخ التصدير: <span class="font-mono text-stone-900 font-bold">${todayStr}</span></p>
-              <p class="text-xs text-stone-600 font-medium">الوقت: <span class="font-mono text-stone-900 font-bold">${timeStr}</span></p>
-              <p class="text-xs text-stone-600 font-medium">معرف التقرير: <span class="font-mono text-teal-700 font-bold">REP-${Math.floor(100000 + Math.random() * 900000)}</span></p>
-            </div>
-          </div>
-
-          <!-- Filter Scope Overview -->
-          <div class="bg-stone-50 p-4 rounded-xl border border-stone-200/60 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <span class="text-[10px] text-stone-400 font-extrabold block mb-0.5">نطاق التقرير</span>
-              <span class="text-xs font-bold text-stone-800">${dateRangeLabel}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-stone-400 font-extrabold block mb-0.5">المتاجر المشمولة</span>
-              <span class="text-xs font-bold text-stone-800">${storeLabel}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-stone-400 font-extrabold block mb-0.5">أصناف العمليات</span>
-              <span class="text-xs font-bold text-stone-800">${typeLabel}</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-stone-400 font-extrabold block mb-0.5">المرشّح الإجرائي</span>
-              <span class="text-xs font-bold text-stone-800">${statusLabel}</span>
-            </div>
-          </div>
-
-          <!-- KPI Bento Boxes -->
-          <div>
-            <h3 class="text-xs font-extrabold text-stone-400 tracking-wider mb-3">مؤشرات الأداء التراكمية في الفترة</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              
-              <div class="border border-stone-200 rounded-xl p-4 bg-white shadow-xs">
-                <span class="text-[10px] text-stone-500 font-bold block">إجمالي الطلبات</span>
-                <div class="flex items-baseline gap-1 mt-1">
-                  <span class="text-lg font-bold text-stone-900 font-mono">${reportsCount}</span>
-                  <span class="text-[10px] text-stone-400 font-medium">طلب مستلم</span>
-                </div>
-              </div>
-
-              <div class="border border-stone-200 rounded-xl p-4 bg-white shadow-xs">
-                <span class="text-[10px] text-stone-500 font-bold block">معدل التعويض والموافقة</span>
-                <div class="flex items-baseline gap-1 mt-1">
-                  <span class="text-lg font-bold text-teal-600 font-mono">${reportsApprovedRate}%</span>
-                  <span class="text-[10px] text-stone-400 font-medium">تسوية إيجابية</span>
-                </div>
-              </div>
-
-              <div class="border border-stone-200 rounded-xl p-4 bg-white shadow-xs">
-                <span class="text-[10px] text-stone-500 font-bold block">القيمة الإجمالية المفحوصة</span>
-                <div class="flex items-baseline gap-1 mt-1">
-                  <span class="text-lg font-bold text-stone-900 font-mono">${reportsTotalValue.toLocaleString('en-US')}</span>
-                  <span class="text-[10px] text-stone-400 font-medium">ر.س</span>
-                </div>
-              </div>
-
-              <div class="border border-stone-200 rounded-xl p-4 bg-teal-50/40 border-teal-100 shadow-xs">
-                <span class="text-[10px] text-teal-800 font-bold block">إجمالي التعويضات المستردة</span>
-                <div class="flex items-baseline gap-1 mt-1">
-                  <span class="text-lg font-bold text-teal-700 font-mono">${reportsApprovedValue.toLocaleString('en-US')}</span>
-                  <span class="text-[10px] text-teal-600 font-medium">ر.س مستردة</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Main Table Section -->
-          <div>
-            <h3 class="text-xs font-extrabold text-stone-400 tracking-wider mb-3">سجل الطلبات المتضمن في التقرير الدوري (مفصّل)</h3>
-            <div class="border border-stone-200 rounded-xl overflow-hidden shadow-xs">
-              <table class="w-full text-right border-collapse">
-                <thead>
-                  <tr class="bg-stone-50 border-b border-stone-200">
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800">رقم طلب حلّها</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800">العميل</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800">المتجر</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800">النوع</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800">حالة العملية</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800 text-left">قيمة الطلب</th>
-                    <th class="px-4 py-3 text-[11px] font-extrabold text-stone-800 text-left">التاريخ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${tableRowsHtml || `
-                    <tr>
-                      <td colspan="7" class="px-4 py-8 text-center text-xs text-stone-400 font-medium">لا توجد طلبات مطابقة لمعايير التصفية والفلترة المحددة لتوليد هذا التقرير الدوري.</td>
-                    </tr>
-                  `}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- AI Advice & Insights included in report -->
-          <div class="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 space-y-2">
-            <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-              <span>💡</span>
-              <span>تحليل وتوصيات نظام "حلّها" الاستشاري الذكي (AI-Report Recommendations)</span>
-            </h4>
-            <p class="text-xs text-amber-800 leading-relaxed font-medium">
-              نلحظ أن نسبة المرتجعات المقبولة تمثل <span class="font-extrabold text-amber-950">${reportsApprovedRate}%</span> من إجمالي العمليات الواردة. 
-              لتقليص معدل الاسترجاع والتعويض لنسبة أدنى من المتوسط العام للربع، يُنصح بمتابعة الشكاوى المصنفة تحت عيوب الصناعة مع مزودي الإمداد الخارجيين، وتطوير أدوات تفصيل المقاسات للعملاء في واجهة المتجر لتقليص ارتجاع مقاسات الملابس والأحذية بنسبة متوقعة تصل لـ ٢٣٪.
-            </p>
-          </div>
-
-          <!-- Official Stamp & Signatures Area -->
-          <div class="grid grid-cols-3 gap-6 pt-8 border-t border-stone-200 mt-12">
-            <div class="text-center space-y-4">
-              <span class="text-[10px] text-stone-400 font-bold block">إعداد وتدقيق تقني</span>
-              <div class="h-16 flex items-center justify-center">
-                <div class="border-2 border-dashed border-teal-300 rounded-full px-4 py-2 text-[10px] font-bold text-teal-600 bg-teal-50/40 rotate-[-3deg] inline-block">
-                  مُعالج رقمياً وتلقائياً<br>أنظمة حلّها المعتمدة
-                </div>
-              </div>
-              <span class="text-xs font-bold text-stone-800">منصة حلّها لإدارة التعويضات</span>
-            </div>
-
-            <div class="text-center space-y-4 border-r border-l border-stone-100">
-              <span class="text-[10px] text-stone-400 font-bold block">التدقيق المالي والعملياتي</span>
-              <div class="h-16 flex items-end justify-center">
-                <div class="w-24 border-b border-stone-300"></div>
-              </div>
-              <span class="text-xs font-bold text-stone-800">المحاسب المسؤول</span>
-            </div>
-
-            <div class="text-center space-y-4">
-              <span class="text-[10px] text-stone-400 font-bold block">اعتماد وإمضاء إدارة المتجر</span>
-              <div class="h-16 flex items-end justify-center">
-                <div class="w-24 border-b border-stone-300"></div>
-              </div>
-              <span class="text-xs font-bold text-stone-800">المالك / المدير العام</span>
-            </div>
-          </div>
-
-        </div>
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 300);
-          }
-        </script>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-  };
-
-  // Filter requests
+  // Filter requests list
   const filteredRequests = requests.filter((req) => {
     const matchesSearch =
       req.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -545,22 +123,185 @@ export default function MerchantDashboard({
     const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
     const matchesType = typeFilter === 'all' || req.type === typeFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
+    // Date filtering (mocked based on actual list)
+    let matchesDate = true;
+    if (reportDateFilter === '7days') {
+      matchesDate = req.createdAt >= '2026-06-21';
+    } else if (reportDateFilter === '30days') {
+      matchesDate = req.createdAt >= '2026-06-01';
+    }
+
+    return matchesSearch && matchesStatus && matchesType && matchesDate;
   });
 
   // Calculate statistics
-  const pendingSupportRequests = requests.filter(r => ['new', 'under_review', 'waiting_customer_info'].includes(r.status));
-  const escalatedRequests = requests.filter(r => r.status === 'escalated_to_owner');
-  const pendingWarehouseRequests = requests.filter(r => r.status === 'approved');
-  const warehouseInspectedRequests = requests.filter(r => r.status === 'received');
-  const warehouseRequests = requests.filter(r => r.status === 'approved' || r.status === 'received');
-  const resolvedRequests = requests.filter(r => ['completed', 'rejected', 'cancelled'].includes(r.status));
+  const pendingSupportCount = requests.filter(r => ['new', 'under_review', 'waiting_customer_info'].includes(r.status)).length;
+  const escalatedCount = requests.filter(r => r.status === 'escalated_to_owner').length;
+  const approvedWarehouseCount = requests.filter(r => r.status === 'approved').length;
+  const receivedWarehouseCount = requests.filter(r => r.status === 'received').length;
+  const completedCount = requests.filter(r => r.status === 'completed').length;
+  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
 
-  const totalRefundedValue = requests
-    .filter(r => r.status === 'completed')
-    .reduce((acc, r) => acc + r.items.reduce((sum, item) => sum + (item.price * item.quantity), 0), 0);
+  // Handler for adding dynamic notes / internal updates
+  const handleAddInternalNote = () => {
+    if (!selectedRequest || !actionNotes.trim()) return;
 
-  // Status translator for badges
+    const updatedRequest = {
+      ...selectedRequest,
+      internalNotes: selectedRequest.internalNotes 
+        ? `${selectedRequest.internalNotes}\n[${new Date().toLocaleDateString('ar-SA')}]: ${actionNotes}`
+        : actionNotes,
+    };
+
+    if (onUpdateRequest) {
+      onUpdateRequest(updatedRequest);
+      setSelectedRequest(updatedRequest);
+    }
+    setActionNotes('');
+    alert('تم إضافة الملاحظة الداخلية للموظفين بنجاح!');
+  };
+
+  // Handler for sending customer message
+  const handleSendCustomerMessage = () => {
+    if (!selectedRequest || !messageToCustomerInput.trim()) return;
+
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'store',
+      senderName: role === 'store_owner' ? 'إدارة المتجر' : 'الدعم الفني والخدمة',
+      content: messageToCustomerInput,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedRequest = {
+      ...selectedRequest,
+      messages: [...(selectedRequest.messages || []), newMessage],
+    };
+
+    if (onUpdateRequest) {
+      onUpdateRequest(updatedRequest);
+      setSelectedRequest(updatedRequest);
+    }
+    setMessageToCustomerInput('');
+    alert('تم إرسال الرسالة إلى بوابة العميل بنجاح!');
+  };
+
+  // Handler for Escalating to Owner
+  const handlePerformEscalation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest || !escalationReasonInput.trim()) return;
+
+    onUpdateRequestStatus(selectedRequest.id, 'escalated_to_owner', {
+      escalationReason: escalationReasonInput,
+      internalNotes: actionNotes.trim() ? actionNotes : undefined,
+    });
+
+    const refreshed = requests.find(r => r.id === selectedRequest.id);
+    if (refreshed) {
+      setSelectedRequest({
+        ...refreshed,
+        status: 'escalated_to_owner',
+        escalationReason: escalationReasonInput,
+      });
+    } else {
+      setSelectedRequest(null);
+    }
+
+    setEscalationReasonInput('');
+    setActionNotes('');
+    setShowEscalationModal(false);
+  };
+
+  // Handler for Requesting Info
+  const handlePerformInfoRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest || !infoRequestInput.trim()) return;
+
+    // Send a message to the customer explaining the info request
+    const newMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'store',
+      senderName: 'الدعم الفني والخدمة',
+      content: `طلب معلومات إضافية: ${infoRequestInput}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    onUpdateRequestStatus(selectedRequest.id, 'waiting_customer_info', {
+      infoRequestedDetails: infoRequestInput,
+      internalNotes: `طلب تزويدنا ببيانات إضافية: ${infoRequestInput}`,
+    });
+
+    // Also inject customer message to log
+    const updatedRequest = {
+      ...selectedRequest,
+      status: 'waiting_customer_info' as RequestStatus,
+      infoRequestedDetails: infoRequestInput,
+      messages: [...(selectedRequest.messages || []), newMessage],
+    };
+
+    if (onUpdateRequest) {
+      onUpdateRequest(updatedRequest);
+      setSelectedRequest(updatedRequest);
+    }
+
+    setInfoRequestInput('');
+    setShowInfoRequestModal(false);
+  };
+
+  // Handler for adding a team member
+  const handleAddTeamMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberName || !newMemberEmail || !newMemberPhone) return;
+
+    const newMember: TeamMember = {
+      id: `member-${Date.now()}`,
+      name: newMemberName,
+      email: newMemberEmail,
+      phone: newMemberPhone,
+      role: newMemberRole,
+      status: 'pending_activation',
+      activationUrl: `${window.location.origin}/activate?member=token-${Math.floor(Math.random() * 9000) + 1000}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    setLocalTeam([newMember, ...localTeam]);
+    setNewMemberName('');
+    setNewMemberEmail('');
+    setNewMemberPhone('');
+    setShowAddMemberModal(false);
+    alert('تم تسجيل الموظف الجديد بنجاح في وضع "بانتظار التنشيط". يمكنك نسخ الرابط لإرساله له.');
+  };
+
+  // Copy Activation link
+  const handleCopyLink = (url: string, id: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(id);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
+
+  // Toggle member status
+  const handleToggleMemberStatus = (id: string) => {
+    setLocalTeam(prev => prev.map(m => {
+      if (m.id !== id) return m;
+      const nextStatus = m.status === 'active' ? 'disabled' : 'active';
+      return { ...m, status: nextStatus };
+    }));
+  };
+
+  // Dynamic Add reason & complaint
+  const handleAddReason = () => {
+    if (!newReasonInput.trim()) return;
+    setReasons([...reasons, newReasonInput.trim()]);
+    setNewReasonInput('');
+  };
+
+  const handleAddComplaint = () => {
+    if (!newComplaintInput.trim()) return;
+    setComplaints([...complaints, newComplaintInput.trim()]);
+    setNewComplaintInput('');
+  };
+
+  // Status Badge Helper
   const getStatusBadge = (status: RequestStatus) => {
     switch (status) {
       case 'new':
@@ -581,14 +322,14 @@ export default function MerchantDashboard({
         return (
           <span className="bg-yellow-50 text-yellow-700 border border-yellow-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
-            بانتظار العميل
+            بانتظار معلومات العميل
           </span>
         );
       case 'escalated_to_owner':
         return (
           <span className="bg-rose-50 text-rose-700 border border-rose-200/60 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-rose-600 rounded-full"></span>
-            مرفوع للمالك
+            مصعّد للمالك
           </span>
         );
       case 'approved':
@@ -602,7 +343,7 @@ export default function MerchantDashboard({
         return (
           <span className="bg-sky-50 text-sky-700 border border-sky-200/50 px-2.5 py-1 rounded-full text-[11px] font-bold inline-flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-sky-500 rounded-full"></span>
-            تم الاستلام بالمستودع
+            مستلم بالمستودع
           </span>
         );
       case 'completed':
@@ -629,116 +370,118 @@ export default function MerchantDashboard({
     }
   };
 
+  // Type Badge Helper
   const getTypeBadge = (type: RequestType) => {
     switch (type) {
       case 'return':
-        return <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px] font-bold">استرجاع مالي</span>;
+        return <span className="text-amber-700 bg-amber-50 px-2 py-0.5 border border-amber-200/30 rounded text-[10px] font-bold">إرجاع منتج</span>;
       case 'exchange':
-        return <span className="text-teal-700 bg-teal-50 px-2 py-0.5 rounded text-[10px] font-bold">استبدال منتج</span>;
+        return <span className="text-indigo-700 bg-indigo-50 px-2 py-0.5 border border-indigo-200/30 rounded text-[10px] font-bold">استبدال مقاس/لون</span>;
       case 'complaint':
-        return <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded text-[10px] font-bold">شكوى / تصعيد</span>;
+        return <span className="text-rose-700 bg-rose-50 px-2 py-0.5 border border-rose-200/30 rounded text-[10px] font-bold">بلاغ / شكوى</span>;
     }
   };
 
   return (
-    <div className="bg-[#faf8f5] min-h-screen">
-      {/* Role specific header navigation */}
-      <div className="bg-white border-b border-stone-200/60 sticky top-[57px] z-40 shadow-xs">
+    <div className="bg-[#faf8f5] min-h-screen" dir="rtl">
+      
+      {/* Sub navigation bar sticky */}
+      <div className="bg-white border-b border-stone-200 sticky top-14 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">☕</span>
+            <span className="text-2xl bg-stone-50 p-2 rounded-xl border border-stone-200/50">{storeLogo}</span>
             <div>
               <h2 className="text-base font-bold text-stone-900">نجد للقهوة المختصة</h2>
-              <p className="text-[11px] text-stone-400 font-medium">لوحة التحكم الفنية للمتجر &bull; مساحة عمل آمنة</p>
+              <p className="text-[11px] text-stone-400 font-medium">لوحة المالك والدعم الفني للمتجر &bull; وضع تداول مباشر</p>
             </div>
           </div>
 
-          {/* Navigation Links according to role */}
-          <div className="flex flex-wrap gap-1.5 bg-stone-50 p-1 rounded-xl border border-stone-200/50">
-            {role === 'owner' && (
+          {/* Context Tab options based on role */}
+          <div className="flex flex-wrap gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-200/50">
+            {role === 'store_owner' && (
               <>
                 <button
                   onClick={() => { setOwnerTab('dashboard'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${ownerTab === 'dashboard' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${ownerTab === 'dashboard' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  الرئيسية
+                  لوحة المالك
                 </button>
                 <button
                   onClick={() => { setOwnerTab('requests'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${ownerTab === 'requests' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${ownerTab === 'requests' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  كافة الطلبات ({requests.length})
+                  الطلبات ({requests.length})
                 </button>
                 <button
                   onClick={() => { setOwnerTab('escalated'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${ownerTab === 'escalated' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${ownerTab === 'escalated' && !selectedRequest ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  <span>مصعّدة للإدارة</span>
-                  {escalatedRequests.length > 0 && (
+                  <span>مصعّدة للمالك</span>
+                  {escalatedCount > 0 && (
                     <span className="bg-rose-500 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                      {escalatedRequests.length}
+                      {escalatedCount}
                     </span>
                   )}
                 </button>
                 <button
                   onClick={() => { setOwnerTab('reports'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${ownerTab === 'reports' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${ownerTab === 'reports' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  التقارير
+                  تقارير الأداء
                 </button>
                 <button
                   onClick={() => { setOwnerTab('settings'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${ownerTab === 'settings' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${ownerTab === 'settings' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  الإعدادات
+                  تهيئة البوابة
                 </button>
                 <button
                   onClick={() => { setOwnerTab('team'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${ownerTab === 'team' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${ownerTab === 'team' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  فريق العمل
+                  الفريق ({localTeam.length})
                 </button>
               </>
             )}
 
-            {role === 'support' && (
+            {role === 'customer_support' && (
               <>
                 <button
                   onClick={() => { setSupportTab('dashboard'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${supportTab === 'dashboard' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${supportTab === 'dashboard' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  إحصائيات الدعم
+                  لوحة الخدمة
                 </button>
                 <button
                   onClick={() => { setSupportTab('requests'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${supportTab === 'requests' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${supportTab === 'requests' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  <span>طلبات العملاء الجارية</span>
-                  {pendingSupportRequests.length > 0 && (
-                    <span className="bg-amber-500 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
-                      {pendingSupportRequests.length}
+                  <span>مراجعة الطلبات</span>
+                  {pendingSupportCount > 0 && (
+                    <span className="bg-amber-500 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                      {pendingSupportCount}
                     </span>
                   )}
                 </button>
               </>
             )}
 
-            {role === 'warehouse' && (
+            {role === 'warehouse_agent' && (
               <>
                 <button
                   onClick={() => { setWarehouseTab('dashboard'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${warehouseTab === 'dashboard' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${warehouseTab === 'dashboard' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  حالة المستودع
+                  حالة المخزن
                 </button>
                 <button
                   onClick={() => { setWarehouseTab('requests'); setSelectedRequest(null); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ${warehouseTab === 'requests' && !selectedRequest ? 'bg-white text-teal-800 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${warehouseTab === 'requests' && !selectedRequest ? 'bg-white text-stone-950 shadow-xs font-bold' : 'text-stone-500 hover:text-stone-900'}`}
                 >
-                  <span>تفتيش المرتجعات</span>
-                  {pendingWarehouseRequests.length > 0 && (
-                    <span className="bg-indigo-600 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center">
-                      {pendingWarehouseRequests.length}
+                  <span>استلام وتفتيش المرتجعات</span>
+                  {(approvedWarehouseCount + receivedWarehouseCount) > 0 && (
+                    <span className="bg-indigo-600 text-white font-mono text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                      {approvedWarehouseCount + receivedWarehouseCount}
                     </span>
                   )}
                 </button>
@@ -748,550 +491,706 @@ export default function MerchantDashboard({
         </div>
       </div>
 
-      {/* Main Workspace Frame */}
+      {/* Main Container Frame */}
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         {selectedRequest ? (
-          /* SINGLE DETAILED REQUEST VIEW with contextual actions based on role */
+          /* ========================================================================= */
+          /* REQUEST DETAIL SUBVIEW */
+          /* ========================================================================= */
           <div className="space-y-6">
             <button
               onClick={() => setSelectedRequest(null)}
-              className="text-stone-500 hover:text-stone-900 text-xs font-medium flex items-center gap-1 bg-white hover:bg-stone-50 px-3 py-2 rounded-lg border border-stone-200/60 w-fit"
+              className="text-stone-500 hover:text-stone-900 text-xs font-medium flex items-center gap-1 bg-white hover:bg-stone-50 px-3 py-2 rounded-lg border border-stone-200/60 w-fit transition cursor-pointer"
             >
               <span>&rarr; العودة لقائمة الطلبات</span>
             </button>
 
-            {/* Request Card Header */}
-            <div className="premium-card p-6 md:p-8 smooth-shadow grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Col 1: Customer Details */}
-              <div className="space-y-4 border-l border-stone-100 pl-0 lg:pl-8">
-                <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Customer summary / metadata */}
+              <div className="bg-white p-6 border border-stone-200 rounded-2xl shadow-xs space-y-6 h-fit">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-4">
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">رقم تتبع حلّها</span>
-                    <h3 className="text-lg font-bold text-stone-900">{selectedRequest.id}</h3>
+                    <span className="text-[10px] text-stone-400 font-mono">رقم تتبع حلّها</span>
+                    <h3 className="text-base font-bold text-stone-900 font-mono">{selectedRequest.id}</h3>
                   </div>
                   {getStatusBadge(selectedRequest.status)}
                 </div>
 
-                <div className="space-y-2.5 pt-3">
-                  <div className="flex justify-between items-center text-xs">
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between items-center">
                     <span className="text-stone-400">العميل</span>
                     <span className="font-bold text-stone-800">{selectedRequest.customerName}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-stone-400">رقم الجوال</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">رقم الهاتف</span>
                     <span className="font-mono text-stone-700" dir="ltr">{selectedRequest.customerPhone}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-stone-400">رقم طلب الشراء</span>
-                    <span className="font-mono text-stone-800 font-semibold">{selectedRequest.orderNumber}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">البريد الإلكتروني</span>
+                    <span className="font-mono text-stone-700">{selectedRequest.customerEmail}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-stone-400">نوع الطلب</span>
+                  <div className="flex justify-between items-center border-t border-stone-100 pt-3">
+                    <span className="text-stone-400">رقم الطلب الأصلي</span>
+                    <span className="font-mono text-stone-800 font-bold">{selectedRequest.orderNumber}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">نوع العملية</span>
                     {getTypeBadge(selectedRequest.type)}
                   </div>
-                  {selectedRequest.customerIBAN && (
-                    <div className="pt-2 border-t border-stone-100">
-                      <span className="block text-[10px] text-stone-400 mb-0.5">الحساب البنكي لتحويل المرتجع (IBAN)</span>
-                      <span className="font-mono text-xs text-stone-700 bg-stone-50 p-1.5 rounded block text-center border border-stone-200/30 overflow-x-auto" dir="ltr">
-                        {selectedRequest.customerIBAN}
-                      </span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-400">تاريخ التقديم</span>
+                    <span className="font-mono text-stone-500">{selectedRequest.createdAt}</span>
+                  </div>
+                </div>
+
+                {/* File / Images Attachment */}
+                {selectedRequest.images && selectedRequest.images.length > 0 && (
+                  <div className="pt-4 border-t border-stone-100 space-y-2">
+                    <span className="block text-xs font-bold text-stone-700">الصور والمرفقات المرفقة:</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedRequest.images.map((img, idx) => (
+                        <a key={idx} href={img} target="_blank" rel="noreferrer" className="group relative block aspect-square rounded-lg border border-stone-200 overflow-hidden bg-stone-50">
+                          <img src={img} alt="مرفق العميل" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                          <span className="absolute bottom-1 right-1 bg-stone-900/60 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">معاينة ↗</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Items details / messaging */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* Product details card */}
+                <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                  <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider">تفاصيل المنتجات والمشكلة المطروحة</h4>
+                  
+                  <div className="divide-y divide-stone-100">
+                    {selectedRequest.items.map((item) => (
+                      <div key={item.id} className="flex gap-4 py-3.5 first:pt-0 last:pb-0">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} referrerPolicy="no-referrer" className="w-16 h-16 object-cover rounded-xl border border-stone-200 shrink-0" />
+                        ) : (
+                          <div className="w-16 h-16 bg-stone-100 border border-stone-200 text-stone-400 rounded-xl flex items-center justify-center shrink-0 text-2xl font-bold">📦</div>
+                        )}
+                        <div className="space-y-1 w-full">
+                          <div className="flex justify-between items-start">
+                            <p className="text-xs font-bold text-stone-900">{item.name}</p>
+                            <span className="text-xs font-bold text-stone-700 font-mono">{item.price} ر.س</span>
+                          </div>
+                          <p className="text-[10px] text-stone-500 font-mono">رمز السلعة: {item.sku} &bull; الكمية المطلوبة: {item.quantity}</p>
+                          
+                          {/* Specific exchange fields */}
+                          {(item.sizeDesired || item.colorDesired) && (
+                            <p className="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded w-fit font-bold">
+                              المقاس/اللون المطلوب البديل: {item.sizeDesired || 'القياسي'} - {item.colorDesired || 'الافتراضي'}
+                            </p>
+                          )}
+
+                          <div className="bg-[#fbfaf8] border border-stone-200/50 p-2.5 rounded-lg mt-2">
+                            <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded">سبب أو شرح العميل:</span>
+                            <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">{item.reason}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Specific complaint details */}
+                  {selectedRequest.complaintType && (
+                    <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-xl mt-4">
+                      <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200/40 px-2 py-0.5 rounded">تصنيف الشكوى المختار: {selectedRequest.complaintType}</span>
+                      {selectedRequest.problemDetails && (
+                        <p className="text-xs text-rose-900 mt-2 leading-relaxed">{selectedRequest.problemDetails}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedRequest.additionalNotes && (
+                    <div className="bg-stone-50 p-3 rounded-xl">
+                      <span className="text-[10px] font-bold text-stone-500">ملاحظات العميل الإضافية:</span>
+                      <p className="text-xs text-stone-600 mt-1 leading-relaxed">{selectedRequest.additionalNotes}</p>
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Col 2: Products & Reasons */}
-              <div className="lg:col-span-2 space-y-6">
-                <div>
-                  <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">المنتجات المطلوب تعويضها</h4>
-                  <div className="space-y-3">
-                    {selectedRequest.items.map((item) => (
-                      <div key={item.id} className="flex gap-4 p-3 bg-stone-50 rounded-xl border border-stone-200/40">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} referrerPolicy="no-referrer" className="w-14 h-14 object-cover rounded-lg border border-stone-200 shrink-0" />
-                        ) : (
-                          <div className="w-14 h-14 bg-stone-200 text-stone-600 rounded-lg flex items-center justify-center shrink-0 text-xl font-bold">📦</div>
-                        )}
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-stone-900">{item.name}</p>
-                          <p className="text-[10px] text-stone-500 font-mono">رمز السلعة: {item.sku} &bull; السعر: {item.price} ر.س &bull; الكمية: {item.quantity}</p>
-                          <div className="bg-white p-2 rounded border border-stone-200/50 mt-1">
-                            <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">سبب العميل:</span>
-                            <p className="text-xs text-stone-600 mt-1 leading-relaxed">{item.reason}</p>
+                {/* Warehouse Inspection Outcome (if inspected) */}
+                {selectedRequest.inspection && (
+                  <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-3">
+                    <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                      <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1">
+                        <PackageCheck className="w-4 h-4 text-indigo-600" />
+                        <span>تقرير تفتيش وفحص المستودع الفعلي</span>
+                      </h4>
+                      <span className="text-[10px] text-stone-400 font-mono">بواسطة: {selectedRequest.inspection.inspectedBy}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-stone-500 font-medium">حالة السلعة المفحوصة:</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          selectedRequest.inspection.condition === 'clean_restock'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : selectedRequest.inspection.condition === 'used_discount'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                              : selectedRequest.inspection.condition === 'wrong_item'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                : 'bg-rose-50 text-rose-700 border border-rose-100'
+                        }`}>
+                          {selectedRequest.inspection.condition === 'clean_restock' && 'ممتازة - تعاد مباشرة للرفوف'}
+                          {selectedRequest.inspection.condition === 'used_discount' && 'بها عيب بسيط - بيع مخفض'}
+                          {selectedRequest.inspection.condition === 'wrong_item' && 'منتج خاطئ - سيتم إعادته للعميل'}
+                          {selectedRequest.inspection.condition === 'damaged_scrap' && 'تالفة كلياً - إتلاف وتخريد'}
+                        </span>
+                      </div>
+                      <div className="text-xs bg-stone-50 p-2.5 rounded-lg text-stone-700 leading-relaxed font-mono">
+                        {selectedRequest.inspection.notes || 'لا توجد ملاحظات تفتيش إضافية'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Contextual actions block based on role */}
+                <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                  <h4 className="text-xs font-bold text-stone-900">إجراءات فريق العمل المتاحة على هذا الطلب</h4>
+                  
+                  {/* SUPPORT ACTIONS */}
+                  {role === 'customer_support' && (
+                    <div className="space-y-4">
+                      {['new', 'under_review'].includes(selectedRequest.status) && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          <button
+                            onClick={() => {
+                              onUpdateRequestStatus(selectedRequest.id, 'approved', {
+                                internalNotes: actionNotes ? actionNotes : 'تمت الموافقة من ممثل الدعم للارتجاع والتفتيش بالمستودع.'
+                              });
+                              setSelectedRequest({ ...selectedRequest, status: 'approved' });
+                              setActionNotes('');
+                              alert('تمت الموافقة المبدئية بنجاح! تم إصدار بوليصة وتوجيه الطلب للمستودع للفحص الفعلي.');
+                            }}
+                            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            موافقة وتوليد بوليصة الشحن (للأقسام)
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              onUpdateRequestStatus(selectedRequest.id, 'rejected', {
+                                internalNotes: actionNotes ? actionNotes : 'تم رفض الطلب لعدم تطابق الشروط سياسة المتجر.'
+                              });
+                              setSelectedRequest({ ...selectedRequest, status: 'rejected' });
+                              setActionNotes('');
+                              alert('تم رفض الطلب رسمياً وإخطار العميل عبر البوابة بالسبب.');
+                            }}
+                            className="bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            رفض وإغلاق الطلب
+                          </button>
+
+                          <button
+                            onClick={() => setShowInfoRequestModal(true)}
+                            className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            طلب معلومات من العميل
+                          </button>
+
+                          <button
+                            onClick={() => setShowEscalationModal(true)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            تصعّيد للإدارة العليا (المالك)
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedRequest.status === 'waiting_customer_info' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              onUpdateRequestStatus(selectedRequest.id, 'under_review', {
+                                internalNotes: 'استئناف المراجعة اليدوية بعد الرد.'
+                              });
+                              setSelectedRequest({ ...selectedRequest, status: 'under_review' });
+                              alert('تم نقل الحالة إلى "تحت المراجعة والتدقيق" لاستئناف الفحص.');
+                            }}
+                            className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            استئناف المراجعة اليدوية (تحت التدقيق)
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Fallback info */}
+                      {!['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status) && (
+                        <p className="text-xs text-stone-400 font-medium">هذا الطلب خارج مراحل التدقيق الفني للدعم حالياً ({selectedRequest.status}).</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* OWNER ACTIONS FOR ESCALATED REQUESTS */}
+                  {role === 'store_owner' && (
+                    <div className="space-y-4">
+                      {selectedRequest.status === 'escalated_to_owner' && (
+                        <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-xl space-y-3">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-rose-700 uppercase">تصعيد عالي الأهمية</span>
+                            <p className="text-xs text-rose-950 font-bold">أوصى ممثل الدعم بتدخل المالك للسبب التالي:</p>
+                            <p className="text-xs text-rose-800 leading-relaxed font-mono">"{selectedRequest.escalationReason || 'لا يوجد سبب مفصل'}"</p>
                           </div>
+
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'approved', {
+                                  internalNotes: 'قرار المالك النهائي: موافقة كاملة بعد التصعيد.'
+                                });
+                                setSelectedRequest({ ...selectedRequest, status: 'approved' });
+                                alert('تم تجاوز التحذير والموافقة على التعويض بقرار من المالك!');
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                            >
+                              قرار المالك: موافقة وتوليد بوليصة
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'rejected', {
+                                  internalNotes: 'قرار المالك النهائي: رفض وتأكيد إغلاق بعد التصعيد.'
+                                });
+                                setSelectedRequest({ ...selectedRequest, status: 'rejected' });
+                                alert('تم رفض الطلب بشكل قطعي من إدارة المتجر.');
+                              }}
+                              className="bg-rose-700 hover:bg-rose-850 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                            >
+                              قرار المالك: رفض نهائي ومغلق
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Direct settlement for received returns by Owner */}
+                      {selectedRequest.status === 'received' && (
+                        <div className="p-4 bg-teal-50/40 border border-teal-100 rounded-xl space-y-3">
+                          <p className="text-xs text-teal-950 font-bold">تم فحص السلعة في المستودع بنجاح. بصفتك مالك المتجر، يرجى إجراء التسوية النهائية للعميل:</p>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'completed', {
+                                  internalNotes: 'تم التسوية المالية من المالك، تعويض المشتري واستكمال تذكرة حلها.'
+                                });
+                                setSelectedRequest({ ...selectedRequest, status: 'completed' });
+                                alert('تم إجراء التسوية والتعويض بنجاح وإغلاق التذكرة بنظام حلّها!');
+                              }}
+                              className="bg-teal-700 hover:bg-teal-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                            >
+                              اعتماد التعويض وإكمال التذكرة (Completed)
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'rejected', {
+                                  internalNotes: 'تم الرفض النهائي بعد الاستلام لعدم تطابق الفحص الفعلي للرفوف.'
+                                });
+                                setSelectedRequest({ ...selectedRequest, status: 'rejected' });
+                                alert('تم رفض تسوية التعويض بعد الفحص.');
+                              }}
+                              className="bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                            >
+                              رفض تسوية التعويض
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedRequest.status !== 'escalated_to_owner' && selectedRequest.status !== 'received' && (
+                        <p className="text-xs text-stone-400">كمالك للمتجر، الصلاحيات الإدارية الكاملة جارية. لم يرفع هذا الطلب للتصعيد أو التسوية الفورية حالياً.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* WAREHOUSE ACTIONS */}
+                  {role === 'warehouse_agent' && (
+                    <div className="space-y-4">
+                      {selectedRequest.status === 'approved' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-stone-600 font-medium">الشحنة لم تصل المستودع فعلياً بعد، عند وصول المندوب بالكرتون يرجى تأكيد استلامها الفعلي:</p>
+                          <button
+                            onClick={() => {
+                              onUpdateRequestStatus(selectedRequest.id, 'received', {
+                                internalNotes: 'أكد المستودع وصول شحنة الارتجاع الفعلي بكرتون سمسا.'
+                              });
+                              setSelectedRequest({ ...selectedRequest, status: 'received' });
+                              alert('تم تسجيل استلام الشحنة فعلياً في المستودع! يرجى البدء في تعبئة استمارة التفتيش لتسجيل العيوب.');
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                          >
+                            تأكيد استلام الطرد الفعلي (Mark Received)
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedRequest.status === 'received' && (
+                        <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-4">
+                          <h5 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-1.5">تعبئة استمارة تفتيش جودة السلعة الراجعة</h5>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة السلعة المادية</label>
+                              <select
+                                value={inspectionCondition}
+                                onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
+                                className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                              >
+                                <option value="clean_restock">ممتازة (مغلق وبحالة جديدة للرفوف)</option>
+                                <option value="used_discount">بها عيب خفيف (عرض بيع مخفض)</option>
+                                <option value="damaged_scrap">تالفة كلياً / كسر / استخدام (إهلاك وتخريد)</option>
+                                <option value="wrong_item">منتج خاطئ (سيتم إعادته للمشتري)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-stone-700 mb-1">ملاحظات الفحص والعيوب الفعليّة</label>
+                              <input
+                                type="text"
+                                value={inspectionNotes}
+                                onChange={(e) => setInspectionNotes(e.target.value)}
+                                placeholder="مثال: الغلاف مفتوح، العبوة تالفة من الجانب اليمين..."
+                                className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              onUpdateRequestStatus(selectedRequest.id, 'under_review', {
+                                internalNotes: 'أنهى المستودع تفتيش الشحنة وسجل نتيجتها في النظام.',
+                                inspection: {
+                                  inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
+                                  inspectedAt: new Date().toISOString().split('T')[0],
+                                  condition: inspectionCondition,
+                                  notes: inspectionNotes || 'تطابق كامل للمواصفات.'
+                                }
+                              });
+                              
+                              const refreshed = requests.find(r => r.id === selectedRequest.id);
+                              if (refreshed) {
+                                setSelectedRequest({
+                                  ...refreshed,
+                                  status: 'under_review',
+                                  inspection: {
+                                    inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
+                                    inspectedAt: new Date().toISOString().split('T')[0],
+                                    condition: inspectionCondition,
+                                    notes: inspectionNotes || 'تطابق كامل للمواصفات.'
+                                  }
+                                });
+                              } else {
+                                setSelectedRequest(null);
+                              }
+                              setInspectionNotes('');
+                              alert('تم إرسال استمارة تفتيش المستودع بنجاح وتحويل الطلب للمراجعة النهائية للدعم الفني!');
+                            }}
+                            className="bg-indigo-700 hover:bg-indigo-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition w-full"
+                          >
+                            حفظ وإرسال تقرير تفتيش المستودع لممثل الدعم
+                          </button>
+                        </div>
+                      )}
+
+                      {!['approved', 'received'].includes(selectedRequest.status) && (
+                        <p className="text-xs text-stone-400">أنت في "وضع المستودع الفني". لا توجد إجراءات متاحة لك على هذا الطلب وهو بهذه الحالة التشغيلية ({selectedRequest.status}).</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Unified messaging tabs between customer messages and internal notes */}
+                <div className="bg-white border border-stone-200 rounded-2xl shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-stone-100 flex justify-between items-center bg-stone-50/50">
+                    <h4 className="text-xs font-bold text-stone-900">سجل تواصل العميل والتعليقات الداخلية (أمان كامل)</h4>
+                    <span className="text-[10px] text-stone-400 font-mono">حلّها MVP Communication Logs</span>
+                  </div>
+
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-stone-100">
+                    
+                    {/* Customer Messages (Viewable by customer in portal) */}
+                    <div className="space-y-4 pb-4 md:pb-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-stone-800 flex items-center gap-1">
+                          <MessageSquare className="w-4 h-4 text-teal-600" />
+                          <span>الرسائل مع العميل (بوابة العميل)</span>
+                        </span>
+                        <span className="text-[9px] text-stone-400 font-bold bg-stone-100 px-1.5 py-0.5 rounded">مظهرة للمشتري</span>
+                      </div>
+
+                      <div className="bg-[#fcfcfb] border border-stone-200/50 rounded-xl p-3 h-48 overflow-y-auto space-y-3">
+                        {selectedRequest.messages && selectedRequest.messages.length > 0 ? (
+                          selectedRequest.messages.map((msg) => (
+                            <div key={msg.id} className={`p-2.5 rounded-xl max-w-[85%] text-xs ${
+                              msg.sender === 'customer' 
+                              ? 'bg-stone-200 text-stone-900 ml-auto' 
+                              : 'bg-teal-50 text-teal-950 mr-auto border border-teal-100/60'
+                            }`}>
+                              <p className="font-bold text-[9px] mb-1 text-stone-500">{msg.senderName}</p>
+                              <p className="leading-relaxed whitespace-pre-line">{msg.content}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-stone-400 text-center">
+                            <p className="text-[11px]">لم يتم تبادل أي رسائل أو استفسارات مع العميل حتى الآن.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Messaging Form */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={messageToCustomerInput}
+                          onChange={(e) => setMessageToCustomerInput(e.target.value)}
+                          placeholder="اكتب رسالة للعميل تظهر في بوابته..."
+                          className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
+                        />
+                        <button
+                          onClick={handleSendCustomerMessage}
+                          className="px-3 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 cursor-pointer"
+                        >
+                          إرسال
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Internal Notes (Strictly hidden from customer) */}
+                    <div className="space-y-4 pt-4 md:pt-0 pl-0 md:pr-6">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-stone-800 flex items-center gap-1">
+                          <ShieldAlert className="w-4 h-4 text-rose-600" />
+                          <span>سجل الملاحظات الداخلية والعملياتية</span>
+                        </span>
+                        <span className="text-[9px] text-rose-600 font-bold bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded">مخفية تماماً عن العميل</span>
+                      </div>
+
+                      <div className="bg-stone-50 border border-stone-200/50 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[11px] text-stone-600 space-y-2 whitespace-pre-line leading-relaxed">
+                        {selectedRequest.internalNotes ? (
+                          selectedRequest.internalNotes
+                        ) : (
+                          <span className="text-stone-400 block text-center pt-16">لا توجد ملاحظات داخلية سرية مسجلة بعد.</span>
+                        )}
+                      </div>
+
+                      {/* Internal Notes Form */}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={actionNotes}
+                          onChange={(e) => setActionNotes(e.target.value)}
+                          placeholder="ملاحظة للفحص أو الإدارة فقط..."
+                          className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                        />
+                        <button
+                          onClick={handleAddInternalNote}
+                          className="px-3 py-2 bg-stone-950 text-white text-xs font-bold rounded-xl hover:bg-stone-800 cursor-pointer"
+                        >
+                          حفظ
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Audit Timeline Logs (External Timeline mask) */}
+                <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                  <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2 mb-4">سجل الأحداث والمتابعة الزمني (Timeline)</h4>
+                  
+                  <div className="space-y-4 font-medium">
+                    {selectedRequest.timeline && selectedRequest.timeline.map((event, idx) => (
+                      <div key={event.id || idx} className="flex gap-3 text-xs items-start">
+                        <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0"></div>
+                        <div className="space-y-0.5">
+                          {/* Timeline mask logic for escalated_to_owner status */}
+                          <p className="text-stone-800 font-bold">
+                            {event.status === 'escalated_to_owner' 
+                              ? 'تم مراجعة طلبك وتوجيهه إلى قسم المتابعة الإدارية العليا لتسريع المعالجة.' 
+                              : event.description}
+                          </p>
+                          <p className="text-[10px] text-stone-400 font-mono">بواسطة: {event.actor} &bull; {event.createdAt}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Internal and External Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedRequest.internalNotes && (
-                    <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/40">
-                      <h5 className="text-[11px] font-bold text-stone-500 mb-1">ملاحظات داخلية</h5>
-                      <p className="text-xs text-stone-600 leading-relaxed">{selectedRequest.internalNotes}</p>
-                    </div>
-                  )}
-                  {selectedRequest.escalationReason && (
-                    <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-200/30">
-                      <h5 className="text-[11px] font-bold text-rose-700 mb-1">سبب التصعيد للمالك</h5>
-                      <p className="text-xs text-rose-900 leading-relaxed">{selectedRequest.escalationReason}</p>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
-
-            {/* ROLE = SUPPORT ACTIONS */}
-            {role === 'support' && ['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status) && (
-              <div className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">ملاحظات داخلية (تضاف لسجل فريق العمل)</label>
-                    <textarea
-                      value={actionNotes}
-                      onChange={(e) => setActionNotes(e.target.value)}
-                      placeholder="اكتب ملاحظة فنية لمساعدة زملائك في المستودع أو الإدارة..."
-                      className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">مبرر رفع وتصعيد الطلب (عند اختيار تصعيد فقط)</label>
-                    <textarea
-                      value={escalationReasonInput}
-                      onChange={(e) => setEscalationReasonInput(e.target.value)}
-                      placeholder="لماذا يحتاج هذا الطلب موافقة استثنائية من مالك المتجر؟"
-                      className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-20 focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                  {/* Action 1: Approve to send reversal label */}
-                  <button
-                    onClick={() => {
-                      onUpdateRequestStatus(selectedRequest.id, 'approved', {
-                        internalNotes: actionNotes || undefined,
-                      });
-                      setSelectedRequest(null);
-                      setActionNotes('');
-                    }}
-                    className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>الموافقة المبدئية وتوليد بوليصة الشحن</span>
-                  </button>
-
-                  {/* Action 2: Escalate */}
-                  <button
-                    onClick={() => {
-                      if (!escalationReasonInput) {
-                        alert('يرجى كتابة مبرر التصعيد أولاً');
-                        return;
-                      }
-                      onUpdateRequestStatus(selectedRequest.id, 'escalated_to_owner', {
-                        internalNotes: actionNotes || undefined,
-                        escalationReason: escalationReasonInput,
-                      });
-                      setSelectedRequest(null);
-                      setActionNotes('');
-                      setEscalationReasonInput('');
-                    }}
-                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <span>تصعيد الطلب لصاحب المتجر لإصدار قرار استثنائي</span>
-                  </button>
-
-                  {/* Action 3: Request Info */}
-                  <button
-                    onClick={() => {
-                      const infoDetails = prompt('ما هي المعلومات المطلوبة من العميل؟');
-                      if (infoDetails) {
-                        onUpdateRequestStatus(selectedRequest.id, 'waiting_customer_info', {
-                          internalNotes: actionNotes || undefined,
-                          infoRequestedDetails: infoDetails,
-                        });
-                        setSelectedRequest(null);
-                        setActionNotes('');
-                      }
-                    }}
-                    className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                    <span>طلب معلومات إضافية من العميل</span>
-                  </button>
-
-                  {/* Action 4: Reject */}
-                  <button
-                    onClick={() => {
-                      onUpdateRequestStatus(selectedRequest.id, 'rejected', {
-                        internalNotes: actionNotes || undefined,
-                      });
-                      setSelectedRequest(null);
-                      setActionNotes('');
-                    }}
-                    className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer"
-                  >
-                    رفض الطلب نهائياً
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ROLE = WAREHOUSE ACTIONS */}
-            {role === 'warehouse' && (selectedRequest.status === 'approved' || selectedRequest.status === 'received') && (
-              <div className="space-y-4 pt-2">
-                {selectedRequest.status === 'approved' ? (
-                  <div className="bg-stone-50 p-5 rounded-xl border border-stone-200/50 space-y-3">
-                    <h5 className="text-xs font-bold text-stone-800">بانتظار استلام الشحنة في المستودع</h5>
-                    <p className="text-[11px] text-stone-500 leading-relaxed">
-                      وصلت السلعة إلى المستودع؟ انقر لتسجيل الاستلام ونقل الحالة للبدء بالفحص الفني والتقييم.
-                    </p>
-                    <button
-                      onClick={() => {
-                        onUpdateRequestStatus(selectedRequest.id, 'received', {
-                          internalNotes: 'تم تأكيد وصول واستلام الشحنة العكسية للمستودع، قيد البدء بالفحص.',
-                        });
-                        setSelectedRequest(null);
-                      }}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
-                    >
-                      <PackageCheck className="w-4 h-4" />
-                      <span>تأكيد استلام الشحنة وبدء الفحص</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-stone-50 p-4 rounded-xl border border-stone-200/50">
-                    <h5 className="text-xs font-bold text-stone-800 mb-3">تفاصيل التفتيش الفعلي للمرتجع الوارد</h5>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-stone-700 mb-1">حالة التفتيش والسلعة الفعليّة</label>
-                        <select
-                          value={inspectionCondition}
-                          onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
-                          className="w-full px-2 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                        >
-                          <option value="clean_restock">سليم ومغلف - إعادة للمخزن للبيع</option>
-                          <option value="damaged_scrap">تالف بالكامل - إتلاف وشطب</option>
-                          <option value="used_discount">مستعمل خفيف - تصنيف بيع مخفض</option>
-                          <option value="wrong_item">منتج خاطئ مغاير لفاتورة الشراء</option>
-                        </select>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] font-bold text-stone-700 mb-1">تقرير الفحص وملاحظات المستودع</label>
-                        <input
-                          type="text"
-                          value={inspectionNotes}
-                          onChange={(e) => setInspectionNotes(e.target.value)}
-                          placeholder="اكتب تفاصيل حالة المنتج، العيوب، أو أي ملاحظات فنية..."
-                          className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-stone-200/50">
-                      {/* Clear Action: Return to Support for Review */}
-                      <button
-                        onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'under_review', {
-                            internalNotes: actionNotes ? `طلب مراجعة من المستودع: ${actionNotes}` : 'إرجاع للدعم الفني بواسطة أخصائي المستودع لمراجعة الطلب.',
-                          });
-                          setSelectedRequest(null);
-                        }}
-                        className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>إرجاع للدعم للمراجعة</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (!inspectionNotes) {
-                            alert('يرجى كتابة ملاحظات الفحص أولاً');
-                            return;
-                          }
-                          onUpdateRequestStatus(selectedRequest.id, 'received', {
-                            internalNotes: `تم الفحص الفني: ${inspectionNotes}`,
-                            inspection: {
-                              condition: inspectionCondition,
-                              notes: inspectionNotes,
-                              inspectedBy: 'أخصائي المستودع',
-                              inspectedAt: new Date().toISOString(),
-                            },
-                          });
-                          setSelectedRequest(null);
-                          setInspectionNotes('');
-                        }}
-                        className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>تأكيد وحفظ نتيجة الفحص (دون إكمال الطلب)</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-              {/* ROLE = OWNER ACTIONS */}
-              {role === 'owner' && (['escalated_to_owner', 'received', 'under_review', 'new'].includes(selectedRequest.status)) && (
-                <div className="space-y-4 pt-2">
-                  <div className="bg-teal-50/20 border border-teal-200/50 p-4 rounded-xl">
-                    <h5 className="text-xs font-bold text-teal-950 mb-1">صلاحيات القرار النهائي للمالك</h5>
-                    <p className="text-[11px] text-teal-800/80 mb-3">كصاحب متجر، يمكنك الموافقة فوراً على التعويض المالي أو الاستبدال، وسيتولى حلّها إصدار إيصال تحويل الحساب وتحديث كمية السلع المخزنية بشكل متزامن.</p>
-
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1">ملاحظة القرار النهائي (تظهر للعميل في بوابة التتبع للشفافية)</label>
-                      <input
-                        type="text"
-                        value={actionNotes}
-                        onChange={(e) => setActionNotes(e.target.value)}
-                        placeholder="مثال: يسعدنا تعويضك، تمت مراجعة طلبك وإصدار الحوالة فوراً لرضاك."
-                        className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {/* Accept and process */}
-                      <button
-                        onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'completed', {
-                            internalNotes: actionNotes ? `موافقة نهائية من المالك: ${actionNotes}` : 'موافقة نهائية من الإدارة العليا وتفعيل التسوية',
-                          });
-                          setSelectedRequest(null);
-                          setActionNotes('');
-                        }}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>قبول طلب التعويض وتحويل المبلغ بنكياً فوراً</span>
-                      </button>
-
-                      {/* Reject */}
-                      <button
-                        onClick={() => {
-                          onUpdateRequestStatus(selectedRequest.id, 'rejected', {
-                            internalNotes: actionNotes ? `رفض نهائي من المالك: ${actionNotes}` : 'مرفوض ومغلق بقرار الإدارة',
-                          });
-                          setSelectedRequest(null);
-                          setActionNotes('');
-                        }}
-                        className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>رفض طلب التعويض بشكل نهائي ومبرر</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* No actions required */}
-              {((role === 'support' && !['new', 'under_review', 'waiting_customer_info'].includes(selectedRequest.status)) ||
-                (role === 'warehouse' && !['approved', 'received'].includes(selectedRequest.status)) ||
-                (role === 'owner' && !['escalated_to_owner', 'received', 'under_review', 'new'].includes(selectedRequest.status)) ||
-                ['completed', 'rejected', 'cancelled'].includes(selectedRequest.status)) && (
-                <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-stone-500 text-xs flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  <span>الطلب مغلق حالياً أو يحتاج لإجراء من دور مستخدم آخر (أنت تشاهد تتبع السجل فقط).</span>
-                </div>
-              )}
-            </div>
-          ) : (
-          /* MULTI-TAB PORTFOLIO VIEWS depending on active Role */
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* ROLE BASED TAB NAVIGATION (DASHBOARD VIEWS) */
+          /* ========================================================================= */
           <>
-            {/* OWNER ROLE PAGES */}
-            {role === 'owner' && (
+            {/* 1. STORE OWNER WORKSPACE VIEW */}
+            {role === 'store_owner' && (
               <>
                 {ownerTab === 'dashboard' && (
                   <div className="space-y-8">
-                    {/* Analytics Dashboard Grid */}
+                    {/* Metrics grid (no financial MRR stuff!) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                      <div className="premium-card p-5 smooth-shadow">
-                        <div className="flex items-center justify-between text-stone-400">
-                          <span className="text-xs font-semibold">معدل استرجاع السلع الكلي</span>
-                          <span className="p-2 bg-stone-50 rounded-lg text-teal-600"><TrendingUp className="w-4 h-4" /></span>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-medium">إجمالي الحالات المستلمة</span>
+                        <p className="text-3xl font-bold font-mono text-stone-900 mt-1">{requests.length}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 mt-2">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{completedCount} حالة منتهية ومكتملة</span>
                         </div>
-                        <p className="text-3xl font-bold font-mono text-stone-900 mt-2">٣.٤%</p>
-                        <p className="text-[10px] text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
-                          <span>&darr; أقل بنسبة ٠.٦% عن الشهر الماضي</span>
-                        </p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <div className="flex items-center justify-between text-stone-400">
-                          <span className="text-xs font-semibold">قيمة التعويضات المستردة</span>
-                          <span className="p-2 bg-stone-50 rounded-lg text-teal-600"><DollarSign className="w-4 h-4" /></span>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-medium">حالات بانتظار معالجة الدعم</span>
+                        <p className="text-3xl font-bold font-mono text-amber-600 mt-1">{pendingSupportCount}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-2">
+                          <span>طابور فحص الدعم الفني</span>
                         </div>
-                        <p className="text-3xl font-bold font-mono text-teal-600 mt-2">
-                          {totalRefundedValue.toLocaleString()} <span className="text-xs">ر.س</span>
-                        </p>
-                        <p className="text-[10px] text-stone-400 font-bold mt-1.5">
-                          تم تعويضها عبر بوابة حلّها البنكية المباشرة
-                        </p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <div className="flex items-center justify-between text-stone-400">
-                          <span className="text-xs font-semibold">متوسط ساعات تلبية طلب العميل</span>
-                          <span className="p-2 bg-stone-50 rounded-lg text-teal-600"><Clock className="w-4 h-4" /></span>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-medium">حالات مصعّدة ومرفوعة لك</span>
+                        <p className="text-3xl font-bold font-mono text-rose-600 mt-1">{escalatedCount}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-rose-600 mt-2">
+                          <AlertTriangle className="w-3.5 h-3.5 animate-bounce" />
+                          <span>تتطلب قرارك الإداري الفوري</span>
                         </div>
-                        <p className="text-3xl font-bold font-mono text-stone-900 mt-2">١٦.٥ <span className="text-xs">ساعة</span></p>
-                        <p className="text-[10px] text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
-                          <span>&darr; أسرع بـ ٤ ساعات من متوسط القطاع</span>
-                        </p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <div className="flex items-center justify-between text-stone-400">
-                          <span className="text-xs font-semibold">الرضا النهائي عن الخدمة</span>
-                          <span className="p-2 bg-stone-50 rounded-lg text-teal-600"><CheckCircle2 className="w-4 h-4 text-emerald-600" /></span>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-medium">مرتجعات بالمخزن بانتظار الفحص</span>
+                        <p className="text-3xl font-bold font-mono text-indigo-600 mt-1">{approvedWarehouseCount}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-2">
+                          <span>{receivedWarehouseCount} طرد تم استلامه فعلياً</span>
                         </div>
-                        <p className="text-3xl font-bold font-mono text-emerald-600 mt-2">٩٦.٢%</p>
-                        <p className="text-[10px] text-emerald-600 font-bold mt-1.5">
-                          تقييمات ممتازة من المشترين عبر الرسائل النصية
-                        </p>
                       </div>
                     </div>
 
-                    {/* Chart & Alerts panel */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <div className="premium-card p-6 smooth-shadow lg:col-span-2 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-bold text-stone-950">معدل استقبال المرتجعات الأسبوعي</h3>
-                          <span className="text-[11px] text-stone-400">آخر ٥ أسابيع جارية</span>
-                        </div>
-
-                        {/* Custom visual SVG bar chart representing return rates premiumly */}
-                        <div className="h-44 flex items-end justify-between gap-6 pt-4 px-4 border-b border-stone-100">
-                          {[
-                            { label: 'أسبوع ١', val: 30, count: 12 },
-                            { label: 'أسبوع ٢', val: 55, count: 24 },
-                            { label: 'أسبوع ٣', val: 80, count: 32 },
-                            { label: 'أسبوع ٤', val: 45, count: 18 },
-                            { label: 'أسبوع ٥ (الآن)', val: 95, count: 41 },
-                          ].map((bar, idx) => (
-                            <div key={idx} className="flex-1 flex flex-col items-center gap-2 group">
-                              <span className="text-[10px] font-mono font-bold text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity bg-teal-50 px-1 rounded">
-                                {bar.count} طلب
-                              </span>
-                              <div className="w-full bg-stone-100 rounded-t-lg h-32 relative flex items-end">
-                                <div className="bg-teal-600 hover:bg-teal-700 rounded-t-lg w-full transition-all duration-500" style={{ height: `${bar.val}%` }}></div>
+                    {/* Overview layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                      <div className="lg:col-span-8 bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                        <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wide border-b border-stone-100 pb-2">طلبات مصعّدة للإدارة العليا بانتظار حسمك</h3>
+                        
+                        {escalatedCount > 0 ? (
+                          <div className="divide-y divide-stone-100 font-medium">
+                            {requests.filter(r => r.status === 'escalated_to_owner').map((req) => (
+                              <div key={req.id} className="flex justify-between items-center py-3.5 first:pt-0 last:pb-0">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-stone-900 font-mono">{req.id}</span>
+                                    <span className="text-stone-300 text-[10px]">&bull;</span>
+                                    <span className="text-xs text-stone-600">{req.customerName}</span>
+                                  </div>
+                                  <p className="text-[11px] text-stone-400 leading-relaxed font-mono">سبب التصعيد: "{req.escalationReason}"</p>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedRequest(req)}
+                                  className="px-3 py-1.5 text-[11px] text-rose-700 bg-rose-50 border border-rose-100 rounded-lg hover:bg-rose-100 font-bold"
+                                >
+                                  حسم القرار والاطلاع
+                                </button>
                               </div>
-                              <span className="text-[10px] text-stone-400 font-semibold">{bar.label}</span>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="py-12 text-center text-stone-400 space-y-2">
+                            <span className="text-3xl">🎉</span>
+                            <h4 className="text-xs font-bold text-stone-800">لا توجد حالات مصعدة للمالك حالياً</h4>
+                            <p className="text-[11px] text-stone-500">فريق الدعم الفني يعالج جميع الطلبات الاعتيادية بكفاءة متناهية.</p>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Escalation Alerts */}
-                      <div className="premium-card p-6 smooth-shadow space-y-4 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-bold text-stone-950">إجراءات تتطلب تدخلك فوراً</h3>
-                            <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px] animate-pulse">
-                              حالة عاجلة
-                            </span>
+                      <div className="lg:col-span-4 bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                        <h3 className="text-xs font-bold text-stone-400 uppercase tracking-wide border-b border-stone-100 pb-2">حالة بوابة العملاء</h3>
+                        
+                        <div className="space-y-4">
+                          <p className="text-xs text-stone-600 leading-relaxed font-medium">بوابتك للعملاء جاهزة تماماً ومحدثة في حلّها. يمكن لمشترين متجرك الدخول فوراً ببياناتهم.</p>
+                          
+                          <div className="p-3 bg-stone-50 rounded-xl space-y-1 text-xs">
+                            <span className="text-[10px] text-stone-400 font-mono">رابط البوابة العامة للعميل</span>
+                            <p className="font-mono text-[11px] text-stone-700 bg-white p-2 border border-stone-200 rounded break-all text-left" dir="ltr">
+                              {window.location.origin}/store/najd-coffee
+                            </p>
                           </div>
 
-                          <div className="space-y-3.5 pt-4">
-                            {escalatedRequests.length > 0 ? (
-                              escalatedRequests.map((req) => (
-                                <div key={req.id} className="p-3 bg-[#fffaf9] border border-rose-100 rounded-xl space-y-2">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="font-bold text-stone-900">{req.id} &bull; {req.customerName}</span>
-                                    <span className="text-[10px] text-stone-400 font-mono">{req.createdAt.split('T')[0]}</span>
-                                  </div>
-                                  <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">"{req.escalationReason}"</p>
-                                  <button
-                                    onClick={() => setSelectedRequest(req)}
-                                    className="text-[11px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1.5 pt-1.5"
-                                  >
-                                    <span>اتخاذ القرار والاستثناء الفوري</span>
-                                    <ChevronLeft className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-center py-6 text-stone-400 space-y-2">
-                                <span className="text-3xl">🎉</span>
-                                <p className="text-xs">رائع! لا توجد طلبات معلقة مصعدة لمالك المتجر حالياً.</p>
-                              </div>
-                            )}
+                          <div className="flex gap-2">
+                            <a 
+                              href={`${window.location.origin}/store/najd-coffee`}
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="flex-1 text-center py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              افتح مساحة العميل ↗
+                            </a>
+                            <button
+                              onClick={() => setShowPreviewModal(true)}
+                              className="flex-1 py-2.5 border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                            >
+                              معاينة إعدادات البوابة
+                            </button>
                           </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-stone-100 text-xs flex items-center gap-2 text-stone-500">
-                          <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                          <span>حلّها يقوم بتنبيهك عبر البريد فور تصعيد حالات استثنائية من الدعم.</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Requests table and filters */}
                 {ownerTab === 'requests' && (
-                  <div className="space-y-6">
-                    {/* Search and Filters panel */}
-                    <div className="premium-card p-4 smooth-shadow flex flex-col md:flex-row items-center gap-4">
-                      {/* Search */}
-                      <div className="relative w-full md:w-80">
+                  <div className="space-y-4">
+                    {/* Search / Filters for Owner */}
+                    <div className="bg-white p-4 border border-stone-200 rounded-2xl shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">
+                      <div className="relative w-full md:max-w-xs">
                         <span className="absolute right-3 top-2.5 text-stone-400"><Search className="w-4 h-4" /></span>
                         <input
                           type="text"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="ابحث برقم التتبع، العميل، الطلب..."
-                          className="w-full pr-9 pl-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
+                          placeholder="ابحث بالرقم، الاسم، الرمز..."
+                          className="w-full pr-9 pl-3 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
                         />
                       </div>
 
-                      {/* Filter by Status */}
-                      <div className="flex items-center gap-2 w-full md:w-auto">
-                        <span className="text-xs text-stone-400 shrink-0"><Filter className="w-3.5 h-3.5 inline ml-1" />حالة الطلب:</span>
+                      <div className="flex gap-2 w-full md:w-auto">
                         <select
                           value={statusFilter}
                           onChange={(e) => setStatusFilter(e.target.value)}
-                          className="px-2 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                          className="flex-1 md:flex-none px-3 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
                         >
-                          <option value="all">كل الحالات الجارية والمكتملة</option>
+                          <option value="all">كل الحالات التشغيلية</option>
                           <option value="new">جديد</option>
-                          <option value="under_review">قيد المراجعة</option>
-                          <option value="waiting_customer_info">بانتظار العميل</option>
-                          <option value="escalated_to_owner">مرفوع لصاحب المتجر</option>
-                          <option value="approved">مقبول وبانتظار الشحن</option>
-                          <option value="received">تم الاستلام بالمستودع</option>
-                          <option value="completed">مكتمل ومسوى</option>
-                          <option value="rejected">مرفوض ومغلق</option>
+                          <option value="under_review">قيد التدقيق</option>
+                          <option value="waiting_customer_info">بانتظار معلومات العميل</option>
+                          <option value="escalated_to_owner">مصعّد للمالك</option>
+                          <option value="approved">مقبول - بانتظار الشحن</option>
+                          <option value="received">مستلم بالمستودع</option>
+                          <option value="completed">مكتمل</option>
+                          <option value="rejected">مرفوض</option>
                           <option value="cancelled">ملغي</option>
                         </select>
-                      </div>
 
-                      {/* Filter by Type */}
-                      <div className="flex items-center gap-2 w-full md:w-auto">
-                        <span className="text-xs text-stone-400 shrink-0">نوع الحركة:</span>
                         <select
                           value={typeFilter}
                           onChange={(e) => setTypeFilter(e.target.value)}
-                          className="px-2 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                          className="flex-1 md:flex-none px-3 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
                         >
                           <option value="all">كل الأنواع</option>
-                          <option value="return">استرجاع مالي</option>
-                          <option value="exchange">استبدال مقاس/منتج</option>
-                          <option value="complaint">شكاوى وتصعيد مباشر</option>
+                          <option value="return">إرجاع</option>
+                          <option value="exchange">استبدال</option>
+                          <option value="complaint">بلاغات وشكاوى</option>
                         </select>
                       </div>
                     </div>
 
-                    {/* Table */}
-                    <div className="premium-card smooth-shadow overflow-hidden">
-                      <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-stone-900">سجل طلبات التعويض</h3>
-                        <span className="text-xs text-stone-500">تم العثور على {filteredRequests.length} طلب</span>
+                    {/* Requests list table */}
+                    <div className="bg-white border border-stone-200 rounded-2xl shadow-xs overflow-hidden">
+                      <div className="p-4 border-b border-stone-100 flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-stone-900">سجلات تذاكر متجرك الجارية ({filteredRequests.length} تذكرة)</h4>
                       </div>
 
                       {filteredRequests.length > 0 ? (
@@ -1299,33 +1198,38 @@ export default function MerchantDashboard({
                           <table className="w-full text-right text-xs">
                             <thead className="bg-stone-50 border-b border-stone-200/50 text-stone-400 font-semibold">
                               <tr>
-                                <th className="px-6 py-4">معرف تتبع حلّها</th>
-                                <th className="px-6 py-4">العميل ومعلومات المشتري</th>
-                                <th className="px-6 py-4">رقم الفاتورة الأصلية</th>
-                                <th className="px-6 py-4">نوع الطلب</th>
+                                <th className="px-6 py-4">رقم تتبع حلّها</th>
+                                <th className="px-6 py-4">العميل</th>
+                                <th className="px-6 py-4">رقم الطلب الأصلي</th>
+                                <th className="px-6 py-4">النوع والسلعة</th>
                                 <th className="px-6 py-4">تاريخ التقديم</th>
-                                <th className="px-6 py-4">مرحلة الطلب الحالية</th>
-                                <th className="px-6 py-4 text-center">الإجراءات</th>
+                                <th className="px-6 py-4">حالة المعالجة</th>
+                                <th className="px-6 py-4 text-center">التدقيق</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stone-100 font-medium text-stone-800">
                               {filteredRequests.map((req) => (
-                                <tr key={req.id} className="hover:bg-stone-50/50 transition-all">
-                                  <td className="px-6 py-4.5 font-bold text-stone-900">{req.id}</td>
+                                <tr key={req.id} className="hover:bg-stone-50/50 transition">
+                                  <td className="px-6 py-4.5 font-bold text-stone-900 font-mono">{req.id}</td>
                                   <td className="px-6 py-4.5">
-                                    <p className="font-bold text-stone-950">{req.customerName}</p>
+                                    <p className="font-bold text-stone-900">{req.customerName}</p>
                                     <p className="text-[10px] text-stone-400 font-mono mt-0.5" dir="ltr">{req.customerPhone}</p>
                                   </td>
-                                  <td className="px-6 py-4.5 font-mono text-stone-800 font-semibold">{req.orderNumber}</td>
-                                  <td className="px-6 py-4.5">{getTypeBadge(req.type)}</td>
-                                  <td className="px-6 py-4.5 font-mono text-stone-500">{req.createdAt.split('T')[0]}</td>
+                                  <td className="px-6 py-4.5 font-mono text-stone-800 font-bold">{req.orderNumber}</td>
+                                  <td className="px-6 py-4.5">
+                                    <div className="flex flex-col gap-1 items-start">
+                                      {getTypeBadge(req.type)}
+                                      <span className="text-[10px] text-stone-500 line-clamp-1 max-w-xs">{req.items[0]?.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4.5 font-mono text-stone-500">{req.createdAt}</td>
                                   <td className="px-6 py-4.5">{getStatusBadge(req.status)}</td>
                                   <td className="px-6 py-4.5 text-center">
                                     <button
                                       onClick={() => setSelectedRequest(req)}
-                                      className="px-3 py-1.5 text-xs text-teal-700 bg-teal-50 border border-teal-100 rounded-lg hover:bg-teal-100 font-bold"
+                                      className="px-3 py-1.5 text-xs text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg font-bold cursor-pointer transition"
                                     >
-                                      معالجة الطلب
+                                      عرض التفاصيل
                                     </button>
                                   </td>
                                 </tr>
@@ -1334,482 +1238,417 @@ export default function MerchantDashboard({
                           </table>
                         </div>
                       ) : (
-                        <div className="text-center py-16 text-stone-400 space-y-3">
-                          <span className="text-4xl">🔍</span>
-                          <h4 className="text-sm font-bold text-stone-800">لا توجد نتائج مطابقة لبحثك</h4>
-                          <p className="text-xs text-stone-500 max-w-xs mx-auto">حاول مراجعة خيارات التصفية أو إدخال رقم تتبع طلب صحيح.</p>
+                        <div className="py-16 text-center text-stone-400 space-y-3">
+                          <span className="text-5xl">📭</span>
+                          <h4 className="text-sm font-bold text-stone-800">لا توجد سجلات مطابقة لمعايير البحث</h4>
+                          <p className="text-xs text-stone-500">حاول تعديل فلاتر التصفية أو المدخلات.</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Escalated tab (shortcut) */}
                 {ownerTab === 'escalated' && (
-                  <div className="space-y-6">
-                    <div className="premium-card p-6 smooth-shadow">
-                      <div className="border-b border-stone-100 pb-4 mb-4">
-                        <h3 className="text-sm font-bold text-stone-900">الحالات المعلقة التي جرى تصعيدها لإشراف المالك</h3>
-                        <p className="text-xs text-stone-500 mt-1">طلبات استثنائية تجاوزت فترة الصلاحية المسموحة أو رُفعت من ممثلي الدعم الفني لإصدار قرار تحويل مالي تعويضي بشكل مباشر.</p>
-                      </div>
+                  <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                    <h3 className="text-sm font-bold text-stone-900">طلبات التعويض المصعّدة لمكتب المالك مباشرة</h3>
+                    <p className="text-xs text-stone-500">حالات تتجاوز مسطرة الموافقة التلقائية لسياسة الدعم وتتطلب تدقيقاً مالياً أو تشغيلياً منك.</p>
 
-                      {escalatedRequests.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {escalatedRequests.map((req) => (
-                            <div key={req.id} className="border border-rose-100 bg-[#fffdfd] p-5 rounded-2xl smooth-shadow flex flex-col justify-between space-y-4">
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold font-mono text-stone-900">{req.id}</span>
-                                  {getStatusBadge(req.status)}
-                                </div>
-                                <div className="text-xs text-stone-600">
-                                  <p>العميل: <span className="font-bold text-stone-800">{req.customerName}</span></p>
-                                  <p>الطلب الأصلي: <span className="font-bold font-mono">{req.orderNumber}</span></p>
-                                </div>
-                                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                                  <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">سبب التصعيد:</span>
-                                  <p className="text-xs text-rose-900 mt-1.5 leading-relaxed font-medium">"{req.escalationReason}"</p>
-                                </div>
-                              </div>
-
-                              <button
-                                onClick={() => setSelectedRequest(req)}
-                                className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold hover:bg-stone-800"
-                              >
-                                اتخاذ القرار الحاسم
-                              </button>
+                    <div className="divide-y divide-stone-100 font-medium">
+                      {requests.filter(r => r.status === 'escalated_to_owner').map((req) => (
+                        <div key={req.id} className="flex justify-between items-center py-4 first:pt-0 last:pb-0">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-stone-900 font-mono">{req.id}</span>
+                              <span className="text-stone-300 text-[10px]">&bull;</span>
+                              <span className="text-xs font-bold text-stone-700">{req.customerName}</span>
+                              <span className="text-stone-300 text-[10px]">&bull;</span>
+                              {getTypeBadge(req.type)}
                             </div>
-                          ))}
+                            <p className="text-[11px] text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg mt-2 w-fit font-mono">
+                              سبب التصعيد: {req.escalationReason}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setSelectedRequest(req)}
+                            className="px-3 py-1.5 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl font-bold transition cursor-pointer"
+                          >
+                            مراجعة وحسم القرار
+                          </button>
                         </div>
-                      ) : (
-                        <div className="text-center py-16 text-stone-400 space-y-3">
-                          <span className="text-5xl">🎉</span>
-                          <h4 className="text-sm font-bold text-stone-800">لوحتك خالية من التصعيدات</h4>
-                          <p className="text-xs text-stone-500 max-w-sm mx-auto">لم يقم الدعم الفني بتصعيد أي قضايا اليوم. جميع العمليات تجري ضمن الحدود التنظيمية المسموحة تلقائياً.</p>
+                      ))}
+
+                      {requests.filter(r => r.status === 'escalated_to_owner').length === 0 && (
+                        <div className="py-12 text-center text-stone-400 space-y-2">
+                          <span className="text-3xl">🌿</span>
+                          <h4 className="text-xs font-bold text-stone-800">كل شيء هادئ!</h4>
+                          <p className="text-[11px] text-stone-500">لم يتم تصعيد أي حالات إضافية للمالك لليوم.</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Reports tab */}
                 {ownerTab === 'reports' && (
                   <div className="space-y-6">
-                    {/* Filter Panel */}
-                    <div className="premium-card p-6 smooth-shadow">
-                      <div className="flex items-center gap-2 border-b border-stone-100 pb-4 mb-6">
-                        <Filter className="w-5 h-5 text-teal-600" />
-                        <div>
-                          <h3 className="text-sm font-bold text-stone-900">تصفية وضبط التقارير الدورية</h3>
-                          <p className="text-xs text-stone-500 mt-1">حدد النطاق التشغيلي، الفئة الإجرائية، والمدة الزمنية للبيانات المراد استخراجها.</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Store filter */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1.5">المتجر المتأثر</label>
-                          <select 
-                            value={reportStoreFilter}
-                            onChange={(e) => setReportStoreFilter(e.target.value)}
-                            className="w-full text-xs border border-stone-200 rounded-lg p-2.5 bg-stone-50 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                          >
-                            <option value="all">جميع المتاجر المتصلة</option>
-                            {uniqueStoreNames.map(name => (
-                              <option key={name} value={name}>{name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Request type filter */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1.5">نوع الطلب</label>
-                          <select 
-                            value={reportTypeFilter}
-                            onChange={(e) => setReportTypeFilter(e.target.value)}
-                            className="w-full text-xs border border-stone-200 rounded-lg p-2.5 bg-stone-50 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                          >
-                            <option value="all">جميع الأنواع</option>
-                            <option value="return">إرجاع نقدي</option>
-                            <option value="exchange">استبدال منتجات</option>
-                            <option value="complaint">شكاوى وبلاغات</option>
-                          </select>
-                        </div>
-
-                        {/* Status filter */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1.5">الحالة الإجرائية</label>
-                          <select 
-                            value={reportStatusFilter}
-                            onChange={(e) => setReportStatusFilter(e.target.value)}
-                            className="w-full text-xs border border-stone-200 rounded-lg p-2.5 bg-stone-50 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                          >
-                            <option value="all">جميع الحالات التشغيلية</option>
-                            <option value="new">جديد</option>
-                            <option value="under_review">قيد المراجعة</option>
-                            <option value="waiting_customer_info">بانتظار العميل</option>
-                            <option value="escalated_to_owner">مرفوع لصاحب المتجر</option>
-                            <option value="approved">مقبول وبانتظار الشحن</option>
-                            <option value="received">تم الاستلام بالمستودع</option>
-                            <option value="completed">مكتمل ومسوى</option>
-                            <option value="rejected">مرفوض ومغلق</option>
-                            <option value="cancelled">ملغي</option>
-                          </select>
-                        </div>
-
-                        {/* Date filter */}
-                        <div>
-                          <label className="block text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-1.5">النطاق الزمني للعمليات</label>
-                          <select 
-                            value={reportDateFilter}
-                            onChange={(e) => setReportDateFilter(e.target.value)}
-                            className="w-full text-xs border border-stone-200 rounded-lg p-2.5 bg-stone-50 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                          >
-                            <option value="7days">آخر ٧ أيام</option>
-                            <option value="30days">آخر ٣٠ يوم</option>
-                            <option value="90days">آخر ٩٠ يوم</option>
-                            <option value="custom">تاريخ مخصص...</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Custom Date inputs if Custom is selected */}
-                      {reportDateFilter === 'custom' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-dashed border-stone-200/60 max-w-xl">
-                          <div>
-                            <label className="block text-[10px] font-bold text-stone-400 mb-1.5">تاريخ البداية</label>
-                            <div className="relative">
-                              <Calendar className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
-                              <input 
-                                type="date"
-                                value={reportStartDate}
-                                onChange={(e) => setReportStartDate(e.target.value)}
-                                className="w-full text-xs border border-stone-200 rounded-lg p-2.5 pl-3 pr-10 bg-stone-50 font-mono focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-stone-400 mb-1.5">تاريخ النهاية</label>
-                            <div className="relative">
-                              <Calendar className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
-                              <input 
-                                type="date"
-                                value={reportEndDate}
-                                onChange={(e) => setReportEndDate(e.target.value)}
-                                className="w-full text-xs border border-stone-200 rounded-lg p-2.5 pl-3 pr-10 bg-stone-50 font-mono focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Operational Summary Bento Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Metric 1 */}
-                      <div className="premium-card p-5 smooth-shadow flex flex-col justify-between bg-white border border-stone-200/60">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">الطلبات المستخرجة</span>
-                        <div className="mt-4">
-                          <h3 className="text-2xl font-extrabold text-stone-900 font-mono leading-none">{reportsCount}</h3>
-                          <p className="text-[10px] text-stone-500 mt-1.5 flex items-center gap-1">
-                            <span className="text-teal-600 font-bold">↑ ١٢٪</span>
-                            <span>عن الربع الماضي</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Metric 2 */}
-                      <div className="premium-card p-5 smooth-shadow flex flex-col justify-between bg-white border border-stone-200/60">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">معدل التسوية والموافقة</span>
-                        <div className="mt-4">
-                          <h3 className="text-2xl font-extrabold text-teal-600 font-mono leading-none">{reportsApprovedRate}%</h3>
-                          <p className="text-[10px] text-stone-500 mt-1.5 flex items-center gap-1">
-                            <span>متوافق مع مستهدف السياسة</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Metric 3 */}
-                      <div className="premium-card p-5 smooth-shadow flex flex-col justify-between bg-white border border-stone-200/60">
-                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">القيمة الإجمالية المفحوصة</span>
-                        <div className="mt-4">
-                          <h3 className="text-2xl font-extrabold text-stone-900 font-mono leading-none">{reportsTotalValue.toLocaleString('en-US')} <span className="text-xs font-bold text-stone-400">ر.س</span></h3>
-                          <p className="text-[10px] text-stone-500 mt-1.5 flex items-center gap-1">
-                            <span>تشمل جميع الطلبات المصفاة</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Metric 4 */}
-                      <div className="premium-card p-5 smooth-shadow flex flex-col justify-between bg-teal-50/20 border-teal-100">
-                        <span className="text-[10px] font-bold text-teal-800 uppercase tracking-wider">المبالغ المستردة للعملاء</span>
-                        <div className="mt-4">
-                          <h3 className="text-2xl font-extrabold text-teal-700 font-mono leading-none">{reportsApprovedValue.toLocaleString('en-US')} <span className="text-xs font-bold text-teal-600">ر.س</span></h3>
-                          <p className="text-[10px] text-teal-600 mt-1.5 flex items-center gap-1">
-                            <span>موافقات مكتملة ومحوّلة</span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* AI Insights & Export Actions Panel */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                      {/* AI Advisor Panel */}
-                      <div className="lg:col-span-7 premium-card p-6 smooth-shadow flex flex-col justify-between bg-stone-50/50 border-stone-200">
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                            <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
-                            <span>تحليل وتوصيات حلّها الذكيّ (AI-Advisor)</span>
-                          </h4>
-                          <p className="text-xs text-stone-600 leading-relaxed pt-1">
-                            نلاحظ ارتفاع نسبة التعويضات لتصل لـ <span className="text-teal-700 font-bold">{reportsApprovedRate}%</span>، وتتركز معظمها في المنتجات المصنفة تحت مسبب "عيب مصنعي". ننصح بمراجعة جودة الشحنات قبل تفريغها بالمستودعات لتقليل الارتجاع والتعويض بمعدل تقديري يصل لـ ١٨٪.
-                          </p>
-                        </div>
-                        <div className="text-[11px] text-teal-700 bg-teal-50/70 border border-teal-100/50 p-3 rounded-xl flex items-center gap-2 mt-4 font-bold">
-                          <span>💡</span>
-                          <span>توفير مالي محتمل: حوالي ٤,٢٠٠ ر.س شهرياً عند معالجة جودة شحنات المتجر المتأثر الرئيسي.</span>
-                        </div>
-                      </div>
-
-                      {/* Export Action Controls */}
-                      <div className="lg:col-span-5 premium-card p-6 smooth-shadow flex flex-col justify-between bg-white border border-stone-200">
-                        <div>
-                          <h4 className="text-xs font-bold text-stone-900">تصدير وتحميل التقارير الدورية</h4>
-                          <p className="text-xs text-stone-500 mt-1 leading-relaxed">بإمكانك استخراج تقرير دوري للعمليات المصفاة لمشاركته ماليّاً أو إداريّاً.</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
-                          {/* Export CSV Button */}
-                          <button 
-                            onClick={handleExportCSV}
-                            disabled={reportsCount === 0}
-                            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                              reportsCount === 0 
-                              ? 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed'
-                              : 'bg-stone-50 hover:bg-stone-100 border border-stone-200 hover:border-stone-300 text-stone-700 hover:shadow-xs active:scale-[0.98]'
-                            }`}
-                          >
-                            <Download className="w-4 h-4 shrink-0" />
-                            <span>جدول CSV</span>
-                          </button>
-
-                          {/* Export PDF Button */}
-                          <button 
-                            onClick={handleExportPDF}
-                            disabled={reportsCount === 0}
-                            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-                              reportsCount === 0 
-                              ? 'bg-stone-100 text-stone-400 border border-stone-200/40 cursor-not-allowed'
-                              : 'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/10 hover:shadow-lg active:scale-[0.98]'
-                            }`}
-                          >
-                            <Printer className="w-4 h-4 shrink-0" />
-                            <span>تقرير PDF رسمي</span>
-                          </button>
-                        </div>
-
-                        {reportsCount === 0 && (
-                          <p className="text-[10px] text-rose-600 font-medium text-center mt-3">⚠️ لا توجد طلبات في الفلتر الحالي لتصديرها.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Report Live Preview Table */}
-                    <div className="premium-card p-6 smooth-shadow">
-                      <div className="border-b border-stone-100 pb-4 mb-4 flex justify-between items-center">
-                        <div>
-                          <h4 className="text-xs font-bold text-stone-900">معاينة مباشرة لسجلات التقرير ({reportsCount} طلب)</h4>
-                          <p className="text-[11px] text-stone-400 mt-0.5">مراجعة سريعة للبيانات التي سيتم تضمينها في الملفات المصدرة.</p>
-                        </div>
-                        <span className="text-[11px] bg-stone-100 text-stone-600 px-2.5 py-1 rounded-md font-mono">UTF-8 / A4 Printable</span>
-                      </div>
-
-                      {reportingFilteredRequests.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-right border-collapse">
-                            <thead>
-                              <tr className="border-b border-stone-100 bg-stone-50/50">
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase">رقم طلب حلّها</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase">العميل</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase">المتجر</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase">النوع</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase">حالة العملية</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase text-left">قيمة الطلب</th>
-                                <th className="px-4 py-3 text-[10px] font-bold text-stone-400 uppercase text-left">تاريخ الإنشاء</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {reportingFilteredRequests.map((req) => {
-                                const totalValue = req.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                                const typeAr = req.type === 'return' ? 'إرجاع' : req.type === 'exchange' ? 'استبدال' : 'شكوى';
-                                
-                                return (
-                                  <tr key={req.id} className="border-b border-stone-100/50 hover:bg-stone-50/30 transition">
-                                    <td className="px-4 py-3 text-xs font-bold text-stone-900 font-mono">{req.id}</td>
-                                    <td className="px-4 py-3 text-xs text-stone-700 font-medium">{req.customerName}</td>
-                                    <td className="px-4 py-3 text-xs text-stone-600">{req.storeName}</td>
-                                    <td className="px-4 py-3 text-xs text-stone-500 font-medium">{typeAr}</td>
-                                    <td className="px-4 py-3 text-xs">
-                                       {getStatusBadge(req.status)}
-                                     </td>
-                                    <td className="px-4 py-3 text-xs font-bold text-stone-900 font-mono text-left">{totalValue.toLocaleString('en-US')} ر.س</td>
-                                    <td className="px-4 py-3 text-xs text-stone-500 font-mono text-left">{new Date(req.createdAt).toLocaleDateString('ar-SA')}</td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="text-center py-10 text-stone-400 space-y-2">
-                          <span className="text-3xl">📭</span>
-                          <h5 className="text-xs font-bold text-stone-800">لا توجد سجلات مطابقة</h5>
-                          <p className="text-[11px] text-stone-500 max-w-xs mx-auto">عدّل مرشحات التصفية بالأعلى لرؤية السجلات المشمولة بالتقرير الدوري.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Settings tab */}
-                {ownerTab === 'settings' && (
-                  <div className="max-w-2xl mx-auto premium-card p-6 md:p-8 smooth-shadow space-y-6">
-                    <div className="border-b border-stone-100 pb-4">
-                      <h3 className="text-sm font-bold text-stone-900">إعدادات سياسة الاسترجاع والتعويض</h3>
-                      <p className="text-xs text-stone-500 mt-1">تعديل نوافذ القبول وضوابط الموافقة التلقائية لعملاء متجرك.</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Window setting */}
+                    {/* Simple Date Filter */}
+                    <div className="bg-white p-4 border border-stone-200 rounded-2xl shadow-xs flex flex-wrap gap-3 items-center justify-between">
                       <div>
-                        <label className="block text-xs font-bold text-stone-700 mb-1">نافذة استلام الطلبات الفعّالة (بالأيام)</label>
-                        <select
-                          value={returnWindow}
-                          onChange={(e) => setReturnWindow(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                        >
-                          <option value={7}>٧ أيام (الحد القانوني الأدنى)</option>
-                          <option value={15}>١٥ يوماً (السياسة القياسية الموصى بها)</option>
-                          <option value={30}>٣٠ يوماً (أعلى رضا للمشتري)</option>
-                        </select>
-                        <p className="text-[10px] text-stone-400 mt-1">لا يسمح النظام للعميل بطلب استرجاع من بوابة الخدمة بعد تخطي هذه الفترة تلقائياً.</p>
+                        <h3 className="text-xs font-bold text-stone-900">تقارير أداء المتجر والعمليات</h3>
+                        <p className="text-[10px] text-stone-400 mt-0.5">مراقبة جودة المنتجات وحجم تذاكر الخدمة دورياً.</p>
                       </div>
 
-                      {/* Auto approval toggle */}
-                      <div className="pt-3 border-t border-stone-100 flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-stone-700">الموافقة التلقائية لطلبات الاسترجاع (Auto-Approval)</label>
-                          <p className="text-[10px] text-stone-400 leading-relaxed max-w-md">توليد بوليصة الشحن العكسي للعميل مباشرة فور تقديم الطلب لتقليل العبء الإداري، باستثناء الحالات الخاصة.</p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={autoApproval}
-                          onChange={(e) => setAutoApproval(e.target.checked)}
-                          className="w-4 h-4 rounded border-stone-300 text-teal-600 focus:ring-teal-500 mt-1 cursor-pointer"
-                        />
-                      </div>
-
-                      {/* Logistics provider */}
-                      <div className="pt-3 border-t border-stone-100">
-                        <label className="block text-xs font-bold text-stone-700 mb-1">شريك الشحن اللوجستي العكسي الافتراضي</label>
-                        <select
-                          value={shippingProvider}
-                          onChange={(e) => setShippingProvider(e.target.value)}
-                          className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-[#fbfaf8]"
-                        >
-                          <option value="smsa">سمسا اكسبريس (SMSA Express) - بوليصة مرتجع مخفضة</option>
-                          <option value="aramex">أرامكس للشحن (Aramex) - تسليم فرع أو استلام منزل</option>
-                          <option value="spl">البريد السعودي سبل (SPL)</option>
-                        </select>
-                      </div>
-
-                      <button
-                        onClick={() => alert('تم حفظ الإعدادات الفنية لسياسة المرتجعات بنجاح!')}
-                        className="w-full bg-teal-600 hover:bg-teal-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-xs mt-4"
-                      >
-                        حفظ إعدادات السياسة الفنيّة للمتجر
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Team tab */}
-                {ownerTab === 'team' && (
-                  <div className="space-y-6">
-                    <div className="premium-card p-6 smooth-shadow">
-                      <div className="border-b border-stone-100 pb-4 mb-4 flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm font-bold text-stone-900">سجل تراخيص وصلاحيات الموظفين</h3>
-                          <p className="text-xs text-stone-500 mt-1">تحديد المسؤوليات بين ممثلي الدعم الفني وأخصائيي فحص المستودعات.</p>
-                        </div>
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => alert('إضافة موظف جديد متاحة لملاك المتاجر في باقة برو فما فوق.')}
-                          className="px-3 py-1.5 bg-stone-900 text-white text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-stone-800"
+                          onClick={() => setReportDateFilter('all')}
+                          className={`px-3 py-1 bg-stone-50 rounded-lg text-xs font-semibold border ${reportDateFilter === 'all' ? 'bg-stone-950 text-white border-stone-950' : 'text-stone-600 border-stone-200'}`}
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>إضافة موظف</span>
+                          كامل الفترة الزمنية
+                        </button>
+                        <button
+                          onClick={() => setReportDateFilter('7days')}
+                          className={`px-3 py-1 bg-stone-50 rounded-lg text-xs font-semibold border ${reportDateFilter === '7days' ? 'bg-stone-950 text-white border-stone-950' : 'text-stone-600 border-stone-200'}`}
+                        >
+                          آخر ٧ أيام للعمليات
+                        </button>
+                        <button
+                          onClick={() => setReportDateFilter('30days')}
+                          className={`px-3 py-1 bg-stone-50 rounded-lg text-xs font-semibold border ${reportDateFilter === '30days' ? 'bg-stone-950 text-white border-stone-950' : 'text-stone-600 border-stone-200'}`}
+                        >
+                          هذا الشهر
                         </button>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {teamMembers.map((member) => (
-                          <div key={member.id} className="border border-stone-200/50 p-4 rounded-xl flex items-center gap-3">
-                            <span className="text-3xl bg-stone-100 p-2.5 rounded-xl">{member.avatar}</span>
-                            <div className="space-y-1">
-                              <h4 className="text-xs font-bold text-stone-900">{member.name}</h4>
-                              <p className="text-[10px] text-stone-500 font-mono">{member.email}</p>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-                                  member.role === 'owner' ? 'bg-purple-100 text-purple-700' : member.role === 'support' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {member.role === 'owner' && 'المالك'}
-                                  {member.role === 'support' && 'دعم عملاء'}
-                                  {member.role === 'warehouse' && 'فني فحص'}
-                                </span>
-                                <span className="text-[10px] text-stone-400 font-medium">نشط: {member.lastActive}</span>
-                              </div>
-                            </div>
+                    {/* Analytics bento grids */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* Counts by Type */}
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                        <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2">تصنيف الطلبات حسب الصنف</h4>
+                        
+                        <div className="space-y-3 font-medium">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-stone-500">إرجاع منتج (Return)</span>
+                            <span className="font-bold font-mono text-stone-900">{filteredRequests.filter(r => r.type === 'return').length} طلبات</span>
                           </div>
-                        ))}
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-stone-500">استبدال مقاس/لون (Exchange)</span>
+                            <span className="font-bold font-mono text-stone-900">{filteredRequests.filter(r => r.type === 'exchange').length} طلبات</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-stone-500">بلاغات وشكاوى (Complaint)</span>
+                            <span className="font-bold font-mono text-stone-900">{filteredRequests.filter(r => r.type === 'complaint').length} طلبات</span>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Counts by Status */}
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                        <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2">تصنيف الحالات الجارية</h4>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                          <div className="p-2 border border-stone-100 bg-stone-50 rounded-lg">
+                            <p className="text-[9px] text-stone-400">جديدة قيد التدقيق</p>
+                            <p className="font-mono text-stone-900 font-bold">{filteredRequests.filter(r => r.status === 'new' || r.status === 'under_review').length}</p>
+                          </div>
+                          <div className="p-2 border border-stone-100 bg-stone-50 rounded-lg">
+                            <p className="text-[9px] text-stone-400">بانتظار العميل</p>
+                            <p className="font-mono text-stone-900 font-bold">{filteredRequests.filter(r => r.status === 'waiting_customer_info').length}</p>
+                          </div>
+                          <div className="p-2 border border-stone-100 bg-stone-50 rounded-lg">
+                            <p className="text-[9px] text-stone-400">مكتمل ومغلق</p>
+                            <p className="font-mono text-stone-900 font-bold">{filteredRequests.filter(r => r.status === 'completed').length}</p>
+                          </div>
+                          <div className="p-2 border border-stone-100 bg-stone-50 rounded-lg">
+                            <p className="text-[9px] text-stone-400">مرفوض وملغي</p>
+                            <p className="font-mono text-stone-900 font-bold">{filteredRequests.filter(r => r.status === 'rejected' || r.status === 'cancelled').length}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top Reasons list */}
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
+                        <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2">المسببات الأكثر شيوعاً</h4>
+                        
+                        <div className="space-y-2.5 text-xs font-medium">
+                          <div className="flex justify-between items-center">
+                            <span className="text-stone-600">وصول تالف / كسر بالعبوة</span>
+                            <span className="font-mono text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-bold">٢ طلبات</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-stone-600">طعم البن قديم / عيب جودة</span>
+                            <span className="font-mono text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-bold">١ طلب</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-stone-600">خطأ في نوع بن الحبوب</span>
+                            <span className="font-mono text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded font-bold">١ طلب</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {ownerTab === 'settings' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Settings configure */}
+                    <div className="lg:col-span-2 bg-white p-6 border border-stone-200 rounded-2xl shadow-xs space-y-6">
+                      <div className="border-b border-stone-100 pb-3">
+                        <h3 className="text-sm font-bold text-stone-900">تخصيص وتهيئة بوابة إرجاع العملاء</h3>
+                        <p className="text-xs text-stone-500">التحكم في المظهر والشعور العام والسياسات الخاصة ببوابتك في حلّها.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-stone-700 mb-1">شعار / أيقونة المتجر</label>
+                            <select
+                              value={storeLogo}
+                              onChange={(e) => setStoreLogo(e.target.value)}
+                              className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                            >
+                              <option value="☕">☕ مقهى/بن نجد</option>
+                              <option value="🛍️">🛍️ حقيبة تسوق</option>
+                              <option value="✨">✨ عطور ومستحضرات</option>
+                              <option value="🔌">🔌 إلكترونيات وأدوات</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-stone-700 mb-1">اللون الهويّاتي الأساسي</label>
+                            <input
+                              type="color"
+                              value={storeColor}
+                              onChange={(e) => setStoreColor(e.target.value)}
+                              className="w-full h-9 border border-stone-200 rounded-xl bg-white cursor-pointer p-0.5"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">رسالة الترحيب والتعليمات للعميل</label>
+                          <textarea
+                            value={welcomeMessage}
+                            onChange={(e) => setWelcomeMessage(e.target.value)}
+                            className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-16 focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">سياسات الاسترجاع والاستبدال للمتجر</label>
+                          <textarea
+                            value={returnPolicy}
+                            onChange={(e) => setReturnPolicy(e.target.value)}
+                            className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-24 focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8] leading-relaxed"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">مدة نافذة تقديم طلبات المرتجعات (بالأيام)</label>
+                          <select
+                            value={settingsWindow}
+                            onChange={(e) => setSettingsWindow(Number(e.target.value))}
+                            className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                          >
+                            <option value={7}>٧ أيام (السياسة الصارمة)</option>
+                            <option value={15}>١٥ يوماً (السياسة الافتراضية المعتمدة)</option>
+                            <option value={30}>٣٠ يوماً (السياسة المرنة)</option>
+                          </select>
+                        </div>
+
+                        <button
+                          onClick={() => alert('تم حفظ تفضيلات وتهيئة بوابة العملاء بنجاح!')}
+                          className="w-full bg-stone-950 hover:bg-stone-800 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer transition"
+                        >
+                          حفظ التغييرات الهوياتيّة للمتجر
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Reasons / Custom Chips configuration */}
+                    <div className="bg-white p-6 border border-stone-200 rounded-2xl shadow-xs space-y-6">
+                      <div>
+                        <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2">مسببات الاسترجاع المعتمدة</h4>
+                        <div className="flex flex-wrap gap-1.5 pt-3">
+                          {reasons.map((r, i) => (
+                            <span key={i} className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2.5 py-1 rounded-full border border-stone-200">
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <input
+                            type="text"
+                            value={newReasonInput}
+                            onChange={(e) => setNewReasonInput(e.target.value)}
+                            placeholder="سبب جديد..."
+                            className="flex-1 px-3 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                          />
+                          <button onClick={handleAddReason} className="p-1.5 bg-stone-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-stone-800">
+                            إضافة
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-stone-900 border-b border-stone-100 pb-2">تصنيفات البلاغات والشكاوى</h4>
+                        <div className="flex flex-wrap gap-1.5 pt-3">
+                          {complaints.map((c, i) => (
+                            <span key={i} className="text-[10px] font-bold bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full border border-rose-100">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <input
+                            type="text"
+                            value={newComplaintInput}
+                            onChange={(e) => setNewComplaintInput(e.target.value)}
+                            placeholder="شكوى جديدة..."
+                            className="flex-1 px-3 py-1.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                          />
+                          <button onClick={handleAddComplaint} className="p-1.5 bg-stone-900 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-stone-800">
+                            إضافة
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {ownerTab === 'team' && (
+                  <div className="bg-white p-6 border border-stone-200 rounded-2xl shadow-xs space-y-6">
+                    <div className="border-b border-stone-100 pb-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-stone-900">إدارة فريق وتراخيص موظفي المتجر</h3>
+                        <p className="text-xs text-stone-500 mt-1">تحديد صلاحيات التدقيق واستلام المرتجعات لأقسام المتجر.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowAddMemberModal(true)}
+                        className="px-3 py-2 bg-stone-950 hover:bg-stone-800 text-white text-xs font-bold rounded-xl flex items-center gap-1 cursor-pointer transition"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إضافة موظف جديد</span>
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-right text-xs">
+                        <thead className="bg-stone-50 border-b border-stone-200/50 text-stone-400 font-semibold">
+                          <tr>
+                            <th className="px-6 py-4">اسم الموظف</th>
+                            <th className="px-6 py-4">البريد الإلكتروني</th>
+                            <th className="px-6 py-4">الجوال</th>
+                            <th className="px-6 py-4">الدور الوظيفي</th>
+                            <th className="px-6 py-4">حالة الحساب</th>
+                            <th className="px-6 py-4 text-center">الإجراءات</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 font-medium text-stone-800">
+                          {localTeam.map((member) => (
+                            <tr key={member.id} className="hover:bg-stone-50/50 transition">
+                              <td className="px-6 py-4.5 font-bold text-stone-900">{member.name}</td>
+                              <td className="px-6 py-4.5 font-mono text-stone-500">{member.email}</td>
+                              <td className="px-6 py-4.5 font-mono text-stone-500" dir="ltr">{member.phone}</td>
+                              <td className="px-6 py-4.5">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  member.role === 'store_owner' 
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-100' 
+                                    : member.role === 'customer_support' 
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-100' 
+                                      : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                }`}>
+                                  {member.role === 'store_owner' && 'مالك المتجر (Owner)'}
+                                  {member.role === 'customer_support' && 'الدعم الفني (Support)'}
+                                  {member.role === 'warehouse_agent' && 'المستودع (Warehouse)'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4.5">
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  member.status === 'active'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                    : member.status === 'pending_activation'
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-100 animate-pulse'
+                                      : 'bg-stone-100 text-stone-500 border border-stone-200'
+                                }`}>
+                                  <span>
+                                    {member.status === 'active' && 'نشط'}
+                                    {member.status === 'pending_activation' && 'بانتظار التفعيل'}
+                                    {member.status === 'disabled' && 'معطل'}
+                                  </span>
+                                </span>
+                              </td>
+                              <td className="px-6 py-4.5 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {member.status === 'pending_activation' && (
+                                    <button
+                                      onClick={() => handleCopyLink(member.activationUrl || '', member.id)}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border cursor-pointer transition flex items-center gap-1 ${
+                                        copiedLink === member.id 
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                          : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'
+                                      }`}
+                                    >
+                                      {copiedLink === member.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                      <span>{copiedLink === member.id ? 'تم النسخ!' : 'رابط التفعيل'}</span>
+                                    </button>
+                                  )}
+
+                                  {member.role !== 'store_owner' && (
+                                    <button
+                                      onClick={() => handleToggleMemberStatus(member.id)}
+                                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                                        member.status === 'active' 
+                                          ? 'bg-rose-50 border-rose-100 text-rose-700 hover:bg-rose-100' 
+                                          : 'bg-stone-50 border-stone-200 text-stone-800 hover:bg-stone-100'
+                                      }`}
+                                    >
+                                      {member.status === 'active' ? 'تعطيل' : 'تنشيط'}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
               </>
             )}
 
-            {/* SUPPORT ROLE PAGES */}
-            {role === 'support' && (
+            {/* 2. CUSTOMER SUPPORT WORKSPACE VIEW */}
+            {role === 'customer_support' && (
               <>
                 {supportTab === 'dashboard' && (
                   <div className="space-y-8">
-                    {/* Support queue cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">حالات جارية بانتظار تفتيش الدعم الفني</span>
-                        <p className="text-4xl font-bold font-mono text-amber-500 mt-2">{pendingSupportRequests.length}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">الوقت المستهدف للتصفية: ساعة واحدة</p>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-semibold">حالات جارية بانتظار تدقيق الدعم</span>
+                        <p className="text-4xl font-bold font-mono text-amber-500 mt-2">{pendingSupportCount}</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">الوقت المستهدف للمعالجة: ساعتان كحد أقصى</p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">حالات بانتظار شحن المستودع من المشتري</span>
-                        <p className="text-4xl font-bold font-mono text-indigo-500 mt-2">{pendingWarehouseRequests.length}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">يتم تتبع بوليصات سمسا بشكل مباشر</p>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-semibold">حالات تم شحنها ومقبولة مبدئياً</span>
+                        <p className="text-4xl font-bold font-mono text-indigo-500 mt-2">{approvedWarehouseCount}</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">بانتظار تأكيد استلام المستودع الفعلي</p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">إجمالي التعويضات الجارية المعالجة</span>
-                        <p className="text-4xl font-bold font-mono text-stone-900 mt-2">{requests.length}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">منذ انضمام المتجر لحلّها</p>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-semibold">تذاكر مستلمة بانتظار تسوية المالك</span>
+                        <p className="text-4xl font-bold font-mono text-stone-900 mt-2">{receivedWarehouseCount}</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">تقارير تفتيش المستودع مدفوعة بنجاح</p>
                       </div>
                     </div>
 
                     <div className="bg-teal-50/20 border border-teal-200/50 p-6 rounded-2xl flex items-start gap-4">
                       <span className="p-3 bg-white rounded-xl text-teal-600 border border-teal-100"><MessageSquare className="w-6 h-6" /></span>
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-teal-900 uppercase">تعليمات ومسطرة الدعم الفني المعتمدة من التاجر</h4>
-                        <p className="text-xs text-teal-800/80 leading-relaxed pt-1">
-                          يُرجى مراجعة وتدقيق جودة صور المرتجعات المرفقة من المشتري. الحالات التي تقل قيمتها عن ٢٠٠ ر.س والكرتون مغلق يتم <span className="font-bold underline">الموافقة التلقائية الفورية</span> لتوفير بوليصة إرجاع سريعة. الحالات المعقدة أو المطالبات فوق الـ ٣٠٠ ر.س يتم تصعيدها للإشراف والمالك بالضغط على "تصعيد الطلب".
+                        <h4 className="text-xs font-bold text-teal-900 uppercase">مسطرة وتوجيهات الدعم الفني</h4>
+                        <p className="text-xs text-teal-800/80 leading-relaxed pt-1 font-medium">
+                          يرجى فحص صور المرفقات المرفقة بعناية قبل الموافقة وتوجيه المشتري للمستودع. الحالات التي بها مشاكل تالفة أو غير متطابقة يتم الموافقة عليها فوراً، والحالات المشبوهة أو فوق الميزانية يتم تصعيدها مباشرة لمكتب المالك.
                         </p>
                       </div>
                     </div>
@@ -1817,46 +1656,47 @@ export default function MerchantDashboard({
                 )}
 
                 {supportTab === 'requests' && (
-                  <div className="space-y-6">
-                    <div className="premium-card smooth-shadow overflow-hidden">
-                      <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-stone-900">طابور مراجعة الطلبات الجارية للدعم الفني</h3>
-                        <span className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded font-bold">{pendingSupportRequests.length} طلب بحاجة لمراجعة وتوجيه</span>
+                  <div className="space-y-4">
+                    {/* Support list */}
+                    <div className="bg-white border border-stone-200 rounded-2xl shadow-xs overflow-hidden">
+                      <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
+                        <h3 className="text-xs font-bold text-stone-900">طابور تدقيق الطلبات الجارية للدعم الفني</h3>
+                        <span className="text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-lg border border-amber-200/50 font-bold">{pendingSupportCount} تذكرة نشطة</span>
                       </div>
 
-                      {pendingSupportRequests.length > 0 ? (
+                      {requests.filter(r => ['new', 'under_review', 'waiting_customer_info'].includes(r.status)).length > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-right text-xs">
                             <thead className="bg-stone-50 border-b border-stone-200/50 text-stone-400 font-semibold">
                               <tr>
                                 <th className="px-6 py-4">رقم تتبع حلّها</th>
-                                <th className="px-6 py-4">العميل والمشتري</th>
-                                <th className="px-6 py-4">رقم طلب المتجر</th>
-                                <th className="px-6 py-4">نوع الطلب والمشكلة</th>
+                                <th className="px-6 py-4">المشتري والعميل</th>
+                                <th className="px-6 py-4">رقم طلب الشراء</th>
+                                <th className="px-6 py-4">النوع وتصنيف المشكلة</th>
                                 <th className="px-6 py-4">تاريخ التقديم</th>
-                                <th className="px-6 py-4 text-center">الإجراء الفوري</th>
+                                <th className="px-6 py-4 text-center">الإجراء</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stone-100 font-medium text-stone-800">
-                              {pendingSupportRequests.map((req) => (
-                                <tr key={req.id} className="hover:bg-stone-50/50 transition-all">
-                                  <td className="px-6 py-4.5 font-bold text-stone-900">{req.id}</td>
+                              {requests.filter(r => ['new', 'under_review', 'waiting_customer_info'].includes(r.status)).map((req) => (
+                                <tr key={req.id} className="hover:bg-stone-50/50 transition">
+                                  <td className="px-6 py-4.5 font-bold text-stone-900 font-mono">{req.id}</td>
                                   <td className="px-6 py-4.5">
                                     <p className="font-bold text-stone-900">{req.customerName}</p>
                                     <p className="text-[10px] text-stone-400 font-mono mt-0.5" dir="ltr">{req.customerPhone}</p>
                                   </td>
-                                  <td className="px-6 py-4.5 font-mono text-stone-800 font-semibold">{req.orderNumber}</td>
+                                  <td className="px-6 py-4.5 font-mono text-stone-800 font-bold">{req.orderNumber}</td>
                                   <td className="px-6 py-4.5">
                                     <div className="flex flex-col gap-1 items-start">
                                       {getTypeBadge(req.type)}
                                       <span className="text-[10px] text-stone-500 line-clamp-1 max-w-xs">{req.items[0]?.reason}</span>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4.5 font-mono text-stone-500">{req.createdAt.split('T')[0]}</td>
+                                  <td className="px-6 py-4.5 font-mono text-stone-500">{req.createdAt}</td>
                                   <td className="px-6 py-4.5 text-center">
                                     <button
                                       onClick={() => setSelectedRequest(req)}
-                                      className="px-3 py-1.5 text-xs text-teal-700 bg-teal-50 border border-teal-100 rounded-lg hover:bg-teal-100 font-bold"
+                                      className="px-3 py-1.5 text-xs text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-100 rounded-lg font-bold cursor-pointer transition"
                                     >
                                       تدقيق واتخاذ قرار
                                     </button>
@@ -1867,10 +1707,10 @@ export default function MerchantDashboard({
                           </table>
                         </div>
                       ) : (
-                        <div className="text-center py-16 text-stone-400 space-y-3">
+                        <div className="py-16 text-center text-stone-400 space-y-3">
                           <span className="text-5xl">🎉</span>
-                          <h4 className="text-sm font-bold text-stone-800">طابور الدعم الفني فارغ تماماً!</h4>
-                          <p className="text-xs text-stone-500 max-w-sm mx-auto">تم الانتهاء من معالجة جميع المراجعات الواردة من العملاء لليوم ومطابقتها مع سياسات المتجر.</p>
+                          <h4 className="text-sm font-bold text-stone-800">طابور الدعم الفني فارغ كلياً!</h4>
+                          <p className="text-xs text-stone-500">تم الانتهاء تماماً من معالجة جميع المراجعات الجارية.</p>
                         </div>
                       )}
                     </div>
@@ -1879,37 +1719,31 @@ export default function MerchantDashboard({
               </>
             )}
 
-            {/* WAREHOUSE ROLE PAGES */}
-            {role === 'warehouse' && (
+            {/* 3. WAREHOUSE WORKSPACE VIEW */}
+            {role === 'warehouse_agent' && (
               <>
                 {warehouseTab === 'dashboard' && (
                   <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">شحنات مرتجعة واردة بانتظار الفحص الفعلي</span>
-                        <p className="text-4xl font-bold font-mono text-indigo-600 mt-2">{pendingWarehouseRequests.length}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">أوشكت بوليصات سمسا على الوصول للمستودع</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-semibold">مرتجع مقبول بانتظار استلامه فعلياً</span>
+                        <p className="text-4xl font-bold font-mono text-indigo-600 mt-2">{approvedWarehouseCount}</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">مندوب شركة الشحن في طريقه إليك بالأطردة</p>
                       </div>
 
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">مرتجعات تم فحصها وإغلاقها</span>
-                        <p className="text-4xl font-bold font-mono text-stone-900 mt-2">{warehouseInspectedRequests.length + resolvedRequests.length}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">تحديث فوري لكميات خطوط الإمداد بزد/سلة</p>
-                      </div>
-
-                      <div className="premium-card p-5 smooth-shadow">
-                        <span className="text-xs font-semibold text-stone-400">نسبة إعادة المنتجات للمخزون (Restocked)</span>
-                        <p className="text-4xl font-bold font-mono text-emerald-600 mt-2">٧٦%</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">سلع بحالة ممتازة أُعيدت للرفوف كمنتجات جديدة</p>
+                      <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
+                        <span className="text-stone-400 text-xs font-semibold">مرتجعات بالمستودع بانتظار الفحص الفعلي</span>
+                        <p className="text-4xl font-bold font-mono text-amber-500 mt-2">{receivedWarehouseCount}</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">يرجى تسجيل استمارات الفحص فور فتح الصناديق</p>
                       </div>
                     </div>
 
-                    <div className="bg-indigo-50/30 border border-indigo-200/50 p-6 rounded-2xl flex items-start gap-4">
+                    <div className="bg-indigo-50/20 border border-indigo-200/50 p-6 rounded-2xl flex items-start gap-4">
                       <span className="p-3 bg-white rounded-xl text-indigo-600 border border-indigo-100"><PackageCheck className="w-6 h-6" /></span>
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-indigo-950 uppercase">إرشاد فني لسلامة وسير عمل المستودع</h4>
-                        <p className="text-xs text-indigo-900/80 leading-relaxed pt-1">
-                          تأكد من مطابقة السريال (Serial Number / SKU) للمنتج المرتجع الفعلي مع الفاتورة المرفقة. يجب وضع ملصق الفحص الفني فور الفراغ وتسجيل ملحوظاتك على نظام حلّها، فبمجرد الضغط على "إرسال التقرير"، يتم دفع إشعار تلقائي للإدارة للموافقة الفورية على تسوية حساب العميل البنكي.
+                        <h4 className="text-xs font-bold text-indigo-950 uppercase">تعليمات استلام السلع وفحصها بالمخزن</h4>
+                        <p className="text-xs text-indigo-900 leading-relaxed pt-1 font-medium">
+                          تطابق كامل لـ SKU السلع والرمز الشريطي مع تفاصيل بوليصة حلّها المرفقة. في حال فتح الغلاف أو استخدام الماكينات يتم تدوين ذلك بدقة، حيث ستقوم الإدارة العليا بالإغلاق بناء على مدخلات تفتيشك.
                         </p>
                       </div>
                     </div>
@@ -1917,57 +1751,59 @@ export default function MerchantDashboard({
                 )}
 
                 {warehouseTab === 'requests' && (
-                  <div className="space-y-6">
-                    <div className="premium-card smooth-shadow overflow-hidden">
-                      <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-stone-900">شحنات مرتجعة للمستودع</h3>
-                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">{warehouseRequests.length} شحنة جارية</span>
+                  <div className="space-y-4">
+                    <div className="bg-white border border-stone-200 rounded-2xl shadow-xs overflow-hidden">
+                      <div className="p-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/40">
+                        <h3 className="text-xs font-bold text-stone-900">طابور استلام وتفتيش المرتجعات الفعلي</h3>
+                        <span className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200/50 font-bold">
+                          {approvedWarehouseCount + receivedWarehouseCount} تذكرة مرتجع
+                        </span>
                       </div>
 
-                      {warehouseRequests.length > 0 ? (
+                      {(approvedWarehouseCount + receivedWarehouseCount) > 0 ? (
                         <div className="overflow-x-auto">
                           <table className="w-full text-right text-xs">
                             <thead className="bg-stone-50 border-b border-stone-200/50 text-stone-400 font-semibold">
                               <tr>
                                 <th className="px-6 py-4">رقم تتبع حلّها</th>
-                                <th className="px-6 py-4">المشتري الأصلي</th>
+                                <th className="px-6 py-4">العميل والمشتري</th>
                                 <th className="px-6 py-4">المنتج والكمية</th>
-                                <th className="px-6 py-4">رمز السلعة (SKU)</th>
-                                <th className="px-6 py-4">حالة الشحن الحالية</th>
+                                <th className="px-6 py-4">الرمز الشريطي (SKU)</th>
+                                <th className="px-6 py-4">الحالة اللوجستية</th>
                                 <th className="px-6 py-4 text-center">الإجراء</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-stone-100 font-medium text-stone-800">
-                              {warehouseRequests.map((req) => (
-                                <tr key={req.id} className="hover:bg-stone-50/50 transition-all">
-                                  <td className="px-6 py-4.5 font-bold text-stone-900">{req.id}</td>
-                                  <td className="px-6 py-4.5 font-bold text-stone-950">{req.customerName}</td>
+                              {requests.filter(r => ['approved', 'received'].includes(r.status)).map((req) => (
+                                <tr key={req.id} className="hover:bg-stone-50/50 transition animate-fade-in">
+                                  <td className="px-6 py-4.5 font-bold text-stone-900 font-mono">{req.id}</td>
+                                  <td className="px-6 py-4.5 font-bold text-stone-900">{req.customerName}</td>
                                   <td className="px-6 py-4.5">
-                                    <p className="font-semibold text-stone-900">{req.items[0]?.name}</p>
-                                    <p className="text-[10px] text-stone-400 font-mono mt-0.5">الكمية: {req.items[0]?.quantity} &bull; السعر: {req.items[0]?.price} ر.س</p>
+                                    <p className="font-bold text-stone-900">{req.items[0]?.name}</p>
+                                    <p className="text-[10px] text-stone-400 font-mono mt-0.5">الكمية: {req.items[0]?.quantity}</p>
                                   </td>
-                                  <td className="px-6 py-4.5 font-mono text-stone-700 font-semibold">{req.items[0]?.sku}</td>
+                                  <td className="px-6 py-4.5 font-mono font-semibold text-stone-700">{req.items[0]?.sku}</td>
                                   <td className="px-6 py-4.5">
                                     {req.status === 'approved' ? (
                                       <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-0.5 rounded text-[10px] font-bold">
-                                        بانتظار الاستلام الفعلي
+                                        بانتظار استلام الطرد
                                       </span>
                                     ) : (
                                       <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-0.5 rounded text-[10px] font-bold">
-                                        تم الاستلام - بانتظار الفحص
+                                        مستلم - بانتظار الفحص
                                       </span>
                                     )}
                                   </td>
                                   <td className="px-6 py-4.5 text-center">
                                     <button
                                       onClick={() => setSelectedRequest(req)}
-                                      className={`px-3 py-1.5 text-xs rounded-lg font-bold border transition ${
-                                        req.status === 'approved'
-                                          ? 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100'
+                                      className={`px-3 py-1.5 text-xs font-bold rounded-lg border cursor-pointer transition ${
+                                        req.status === 'approved' 
+                                          ? 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100' 
                                           : 'text-indigo-700 bg-indigo-50 border-indigo-100 hover:bg-indigo-100'
                                       }`}
                                     >
-                                      {req.status === 'approved' ? 'تسجيل الاستلام' : 'افتح استمارة التفتيش'}
+                                      {req.status === 'approved' ? 'تأكيد الاستلام' : 'افتح نموذج الفحص'}
                                     </button>
                                   </td>
                                 </tr>
@@ -1976,10 +1812,10 @@ export default function MerchantDashboard({
                           </table>
                         </div>
                       ) : (
-                        <div className="text-center py-16 text-stone-400 space-y-3">
+                        <div className="py-16 text-center text-stone-400 space-y-3">
                           <span className="text-5xl">📦</span>
-                          <h4 className="text-sm font-bold text-stone-800">مستودعك خالٍ من الشحنات المرتجعة بانتظار الفحص</h4>
-                          <p className="text-xs text-stone-500 max-w-sm mx-auto">رائع! جميع الشحنات العكسية التي تم استلامها خضعت للتفتيش وتسجيل تقارير الفحص المالي.</p>
+                          <h4 className="text-sm font-bold text-stone-800">مستودعك خالٍ من العمليات الجارية</h4>
+                          <p className="text-xs text-stone-500">كل السلع المرتجعة المستلمة تم فحصها وتدوينها بالنظام!</p>
                         </div>
                       )}
                     </div>
@@ -1990,6 +1826,262 @@ export default function MerchantDashboard({
           </>
         )}
       </div>
+
+      {/* ========================================================================= */
+      /* MODALS & PORTAL PREVIEWS */
+      /* ========================================================================= */}
+
+      {/* ESCALATION TO OWNER MODAL */}
+      {showEscalationModal && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-stone-200 shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+              <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <span>تصعيد الطلب لمكتب المالك مباشرة</span>
+              </h4>
+              <button onClick={() => setShowEscalationModal(false)} className="text-stone-400 hover:text-stone-900 text-lg cursor-pointer">&times;</button>
+            </div>
+
+            <form onSubmit={handlePerformEscalation} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">سبب التصعيد والتوصية الإدارية</label>
+                <textarea
+                  required
+                  value={escalationReasonInput}
+                  onChange={(e) => setEscalationReasonInput(e.target.value)}
+                  placeholder="مثال: يطالب العميل بتعويض مالي لسلعة تم شحنها بشكل سليم ولكنها تضررت بسبب عيب فني بالهيكل الأصلي. نوصي بالموافقة الاستثنائية..."
+                  className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-24 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-[#fbfaf8]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">ملاحظة داخلية إضافية (اختياري)</label>
+                <input
+                  type="text"
+                  value={actionNotes}
+                  onChange={(e) => setActionNotes(e.target.value)}
+                  placeholder="مثال: تم التواصل هاتفياً وتأكيد المشكلة..."
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-rose-500 bg-[#fbfaf8]"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEscalationModal(false)}
+                  className="flex-1 py-2 border border-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer transition hover:bg-stone-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer transition"
+                >
+                  تأكيد تصعيد الطلب
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* INFORMATION REQUEST MODAL */}
+      {showInfoRequestModal && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-stone-200 shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+              <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                <Info className="w-4 h-4 text-amber-500" />
+                <span>توجيه طلب معلومات للمشتري</span>
+              </h4>
+              <button onClick={() => setShowInfoRequestModal(false)} className="text-stone-400 hover:text-stone-900 text-lg cursor-pointer">&times;</button>
+            </div>
+
+            <form onSubmit={handlePerformInfoRequest} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">البيانات أو التوضيحات المطلوبة من العميل</label>
+                <textarea
+                  required
+                  value={infoRequestInput}
+                  onChange={(e) => setInfoRequestInput(e.target.value)}
+                  placeholder="مثال: يرجى تزويدنا بصورة واضحة للرقم التسلسلي المسجل أسفل العبوة لمطابقتها مع مخزون المتجر..."
+                  className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-24 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-[#fbfaf8]"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInfoRequestModal(false)}
+                  className="flex-1 py-2 border border-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer transition hover:bg-stone-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer transition"
+                >
+                  توجيه الطلب للعميل
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM MEMBER ADD MODAL */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-stone-200 shadow-2xl p-6 space-y-4" dir="rtl">
+            <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+              <h4 className="text-sm font-bold text-stone-900">إضافة موظف جديد للمتجر (MVP)</h4>
+              <button onClick={() => setShowAddMemberModal(false)} className="text-stone-400 hover:text-stone-900 text-lg cursor-pointer">&times;</button>
+            </div>
+
+            <form onSubmit={handleAddTeamMember} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">الاسم الكامل للموظف</label>
+                <input
+                  type="text"
+                  required
+                  value={newMemberName}
+                  onChange={(e) => setNewMemberName(e.target.value)}
+                  placeholder="مثال: فواز العتيبي"
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">البريد الإلكتروني المهني</label>
+                <input
+                  type="email"
+                  required
+                  value={newMemberEmail}
+                  onChange={(e) => setNewMemberEmail(e.target.value)}
+                  placeholder="مثال: fawaz@najdcoffee.com"
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8] text-right"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">رقم جوال الموظف</label>
+                <input
+                  type="text"
+                  required
+                  value={newMemberPhone}
+                  onChange={(e) => setNewMemberPhone(e.target.value)}
+                  placeholder="0501234567"
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8] text-right"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">الدور والصلاحيات الوظيفية</label>
+                <select
+                  value={newMemberRole}
+                  onChange={(e) => setNewMemberRole(e.target.value as 'customer_support' | 'warehouse_agent')}
+                  className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-stone-500 bg-[#fbfaf8]"
+                >
+                  <option value="customer_support">الدعم الفني والخدمة (Customer Support)</option>
+                  <option value="warehouse_agent">أخصائي فحص المستودعات (Warehouse Agent)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="flex-1 py-2 border border-stone-200 text-stone-700 rounded-xl text-xs font-bold cursor-pointer transition hover:bg-stone-50"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-stone-950 hover:bg-stone-850 text-white rounded-xl text-xs font-bold cursor-pointer transition"
+                >
+                  تأجيل وإصدار رابط التفعيل
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PORTAL PREVIEW MODAL */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[#faf8f5] w-full max-w-2xl rounded-2xl border border-stone-200 shadow-2xl overflow-hidden flex flex-col h-[90vh]">
+            <div className="bg-white p-4 border-b border-stone-200 flex justify-between items-center">
+              <div>
+                <h4 className="text-sm font-bold text-stone-900">معاينة تفاعلية لبوابة دعم متجرك الإلكتروني</h4>
+                <p className="text-[10px] text-stone-400 mt-0.5">محاكاة فورية لمظهر وشعور بوابة العميل النهائية.</p>
+              </div>
+              <button 
+                onClick={() => setShowPreviewModal(false)} 
+                className="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-lg transition cursor-pointer"
+              >
+                إغلاق المعاينة
+              </button>
+            </div>
+
+            {/* Simulated Mobile screen wrapper */}
+            <div className="flex-1 overflow-y-auto p-6 flex justify-center items-start">
+              <div className="w-full max-w-sm bg-white border border-stone-200 rounded-3xl shadow-lg overflow-hidden min-h-[500px] flex flex-col font-sans">
+                
+                {/* Logo and header with store theme color */}
+                <div className="p-6 text-white text-center space-y-2 relative" style={{ backgroundColor: storeColor }}>
+                  <span className="text-4xl block">{storeLogo}</span>
+                  <h3 className="text-base font-bold">بوابة التعويضات الذكية</h3>
+                  <p className="text-[10px] text-white/80">تداول آمن وحر بالتعاون مع منصة حلّها</p>
+                </div>
+
+                <div className="p-4 space-y-4 flex-1">
+                  {/* welcome message preview */}
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-100 text-right space-y-1">
+                    <span className="text-[9px] text-stone-400 block">رسالة الترحيب:</span>
+                    <p className="text-xs text-stone-700 leading-relaxed font-medium">{welcomeMessage}</p>
+                  </div>
+
+                  {/* policies preview */}
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-100 text-right space-y-1">
+                    <span className="text-[9px] text-stone-400 block">شروط وسياسة التعويض:</span>
+                    <p className="text-xs text-stone-600 leading-relaxed">{returnPolicy}</p>
+                  </div>
+
+                  {/* Window duration and stats */}
+                  <div className="grid grid-cols-2 gap-3 text-center text-[10px] font-bold">
+                    <div className="p-2 border border-stone-200 rounded-lg bg-white">
+                      <p className="text-stone-400">مدة التقديم الفعالة</p>
+                      <p className="text-stone-800 text-xs mt-0.5 font-mono">{settingsWindow} يوماً</p>
+                    </div>
+                    <div className="p-2 border border-stone-200 rounded-lg bg-white">
+                      <p className="text-stone-400">طريقة الفحص</p>
+                      <p className="text-stone-800 text-xs mt-0.5">مستودع متكامل</p>
+                    </div>
+                  </div>
+
+                  {/* Action preview */}
+                  <div className="space-y-2 pt-2">
+                    <button className="w-full text-white py-2.5 rounded-xl text-xs font-bold text-center block shadow-xs" style={{ backgroundColor: storeColor }}>
+                      البدء في رفع تذكرة تعويض جديدة
+                    </button>
+                    <p className="text-[9px] text-stone-400 text-center leading-relaxed">بموجب أنظمة حماية المستهلك الموحدة لغرفة التجارة الإلكترونية.</p>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-stone-50 border-t border-stone-100 text-center text-[9px] text-stone-400">
+                  مدعوم تقنياً بواسطة منصة حلّها (Hal'ha SaaS)
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

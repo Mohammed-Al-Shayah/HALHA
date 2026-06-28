@@ -8,9 +8,9 @@ import { ShieldCheck, Store, UserCircle, Smartphone, HelpCircle } from 'lucide-r
 
 interface RoleSelectorProps {
   currentArea: 'admin' | 'merchant' | 'customer';
-  merchantRole: 'owner' | 'support' | 'warehouse';
+  merchantRole: 'store_owner' | 'customer_support' | 'warehouse_agent';
   onAreaChange: (area: 'admin' | 'merchant' | 'customer') => void;
-  onMerchantRoleChange: (role: 'owner' | 'support' | 'warehouse') => void;
+  onMerchantRoleChange: (role: 'store_owner' | 'customer_support' | 'warehouse_agent') => void;
 }
 
 export default function RoleSelector({
@@ -78,9 +78,9 @@ export default function RoleSelector({
           <span className="text-[10px] text-stone-400 px-2 font-medium">صلاحية التاجر:</span>
           
           <button
-            onClick={() => onMerchantRoleChange('owner')}
+            onClick={() => onMerchantRoleChange('store_owner')}
             className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
-              merchantRole === 'owner'
+              merchantRole === 'store_owner'
                 ? 'bg-teal-500 text-stone-950 font-bold'
                 : 'text-stone-300 hover:text-white hover:bg-stone-800'
             }`}
@@ -89,9 +89,9 @@ export default function RoleSelector({
           </button>
 
           <button
-            onClick={() => onMerchantRoleChange('support')}
+            onClick={() => onMerchantRoleChange('customer_support')}
             className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
-              merchantRole === 'support'
+              merchantRole === 'customer_support'
                 ? 'bg-teal-500 text-stone-950 font-bold'
                 : 'text-stone-300 hover:text-white hover:bg-stone-800'
             }`}
@@ -100,9 +100,9 @@ export default function RoleSelector({
           </button>
 
           <button
-            onClick={() => onMerchantRoleChange('warehouse')}
+            onClick={() => onMerchantRoleChange('warehouse_agent')}
             className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
-              merchantRole === 'warehouse'
+              merchantRole === 'warehouse_agent'
                 ? 'bg-teal-500 text-stone-950 font-bold'
                 : 'text-stone-300 hover:text-white hover:bg-stone-800'
             }`}

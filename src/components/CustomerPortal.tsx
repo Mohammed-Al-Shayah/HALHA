@@ -104,7 +104,6 @@ export default function CustomerPortal({
       customerName: 'ضيف المتجر الكريم',
       customerPhone: phoneNumber || '966500000000',
       customerEmail: 'customer@test.sa',
-      customerIBAN: undefined,
       type: requestType,
       items: [newReqItem],
       status: 'new',

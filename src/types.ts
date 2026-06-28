@@ -67,7 +67,6 @@ export interface CustomerRequest {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-  customerIBAN?: string;
   type: RequestType;
   items: RequestItem[];
   status: RequestStatus;
@@ -79,35 +78,34 @@ export interface CustomerRequest {
   timeline: TimelineEvent[];
   inspection?: WarehouseInspection;
   messages?: RequestMessage[];
+  sizeDesired?: string;
+  colorDesired?: string;
+  additionalNotes?: string;
+  complaintType?: string;
+  problemDetails?: string;
 }
 
 export interface Store {
   id: string;
   name: string;
-  slug?: string;
-  logo: string;
-  domain: string;
+  slug: string;
+  status: 'pending' | 'active' | 'disabled';
   ownerName: string;
   ownerEmail: string;
-  ownerPhone?: string;
-  status: 'pending' | 'active' | 'disabled';
-  plan: 'basic' | 'pro' | 'enterprise';
+  ownerPhone: string;
+  customerPortalUrl: string;
+  activationUrl: string;
   createdAt: string;
-  stats: {
-    totalRequests: number;
-    pendingCount: number;
-    escalatedCount: number;
-    avgResolutionHours: number;
-    customerSatisfaction: number; // نسبة مئوية مثل 94%
-  };
+  requestsCount: number;
 }
 
 export interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: 'owner' | 'support' | 'warehouse';
-  avatar: string;
+  phone: string;
+  role: 'store_owner' | 'customer_support' | 'warehouse_agent';
   status: 'pending_activation' | 'active' | 'disabled';
-  lastActive: string;
+  activationUrl: string;
+  createdAt: string;
 }

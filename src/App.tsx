@@ -19,20 +19,14 @@ export default function App() {
 
   // Active view state
   const [currentArea, setCurrentArea] = useState<'merchant' | 'admin' | 'customer'>('merchant');
-  const [merchantRole, setMerchantRole] = useState<'owner' | 'support' | 'warehouse'>('owner');
+  const [merchantRole, setMerchantRole] = useState<'store_owner' | 'customer_support' | 'warehouse_agent'>('store_owner');
 
   // Handle creating a new store (Platform Admin Panel Action)
-  const handleCreateStore = (newStoreData: Omit<Store, 'stats' | 'createdAt'>) => {
+  const handleCreateStore = (newStoreData: Omit<Store, 'createdAt' | 'requestsCount'>) => {
     const newStore: Store = {
       ...newStoreData,
       createdAt: new Date().toISOString().split('T')[0],
-      stats: {
-        totalRequests: 0,
-        pendingCount: 0,
-        escalatedCount: 0,
-        avgResolutionHours: 12,
-        customerSatisfaction: 100,
-      }
+      requestsCount: 0,
     };
     setStores((prev) => [newStore, ...prev]);
   };
@@ -58,11 +52,7 @@ export default function App() {
         if (s.id !== newRequest.storeId) return s;
         return {
           ...s,
-          stats: {
-            ...s.stats,
-            totalRequests: s.stats.totalRequests + 1,
-            pendingCount: s.stats.pendingCount + 1,
-          }
+          requestsCount: s.requestsCount + 1,
         };
       })
     );
@@ -96,9 +86,9 @@ export default function App() {
         // Determine current actor name
         let actorName = 'النظام (تلقائي)';
         if (currentArea === 'merchant') {
-          if (merchantRole === 'owner') actorName = 'عبدالرحمن آل سعود (المالك)';
-          else if (merchantRole === 'support') actorName = 'أحمد القحطاني (دعم العملاء)';
-          else if (merchantRole === 'warehouse') actorName = 'بندر العتيبي (أخصائي المستودع)';
+          if (merchantRole === 'store_owner') actorName = 'عبدالرحمن آل سعود (المالك)';
+          else if (merchantRole === 'customer_support') actorName = 'أحمد القحطاني (دعم العملاء)';
+          else if (merchantRole === 'warehouse_agent') actorName = 'بندر العتيبي (أخصائي المستودع)';
         }
 
         // Compile Arabic timeline texts for audit logs
@@ -165,36 +155,6 @@ export default function App() {
           inspection: additionalData?.inspection || req.inspection,
           timeline: updatedTimeline,
           updatedAt: new Date().toISOString(),
-        };
-      })
-    );
-
-    // Dynamic stats adjustments for affected stores
-    setStores((prevStores) =>
-      prevStores.map((store) => {
-        const req = requests.find(r => r.id === requestId);
-        if (!req || store.id !== req.storeId) return store;
-
-        let pendingDiff = 0;
-        let escalatedDiff = 0;
-
-        const isOldPending = ['new', 'under_review', 'waiting_customer_info', 'approved', 'received'].includes(req.status);
-        const isNewPending = ['new', 'under_review', 'waiting_customer_info', 'approved', 'received'].includes(newStatus);
-        const isOldEscalated = req.status === 'escalated_to_owner';
-        const isNewEscalated = newStatus === 'escalated_to_owner';
-
-        if (isOldPending && !isNewPending) pendingDiff = -1;
-        if (!isOldPending && isNewPending) pendingDiff = 1;
-        if (isOldEscalated && !isNewEscalated) escalatedDiff = -1;
-        if (!isOldEscalated && isNewEscalated) escalatedDiff = 1;
-
-        return {
-          ...store,
-          stats: {
-            ...store.stats,
-            pendingCount: Math.max(0, store.stats.pendingCount + pendingDiff),
-            escalatedCount: Math.max(0, store.stats.escalatedCount + escalatedDiff),
-          }
         };
       })
     );
