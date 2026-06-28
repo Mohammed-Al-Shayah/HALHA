@@ -225,21 +225,21 @@ export default function CustomerPortal({
   const getCustomerFriendlyStatus = (status: RequestStatus) => {
     switch (status) {
       case 'new':
-        return 'تم استلام طلبكم وهو قيد المراجعة والتدقيق الإداري';
+        return 'تم استلام الطلب وهو قيد المراجعة والتدقيق الإداري';
       case 'under_review':
-        return 'يجري مراجعة تفاصيل طلبكم من الدعم الفني';
+        return 'طلبكم قيد المراجعة والتدقيق الفني';
       case 'waiting_customer_info':
-        return 'نحتاج معلومات إضافية منكم لإتمام الطلب (انظر الرسائل بالأسفل)';
+        return 'بانتظار معلومات إضافية منكم (يرجى مراجعة الرسائل أدناه)';
       case 'escalated_to_owner':
-        return 'طلبك قيد المراجعة الإستثنائية من الإدارة العليا للمتجر';
+        return 'طلبك قيد المراجعة من إدارة المتجر';
       case 'approved':
-        return 'تم قبول الطلب مبدئياً وبانتظار وصول الشحنة للمستودع';
+        return 'تم قبول الطلب وجاري متابعة الخطوات التالية حسب سياسة المتجر';
       case 'rejected':
-        return 'تم رفض طلبكم لعدم مطابقته لسياسات المتجر';
+        return 'تم رفض الطلب بعد المراجعة وتوضيح الأسباب للعميل';
       case 'received':
-        return 'وصل المنتج للمستودع وهو قيد الفحص الفني والتقييم';
+        return 'تم استلام المنتج في المستودع وهو قيد الفحص والتقييم';
       case 'completed':
-        return 'تمت الموافقة النهائية واعتماد التسوية وإتمام طلبكم بنجاح';
+        return 'تم إكمال الطلب حسب سياسة المتجر.';
       case 'cancelled':
         return 'تم إلغاء الطلب وإغلاقه بناءً على رغبتكم';
       default:
@@ -276,7 +276,7 @@ export default function CustomerPortal({
               <span className="text-xl">☕</span>
               <div>
                 <h1 className="text-xs font-bold text-stone-900">نجد للقهوة المختصة</h1>
-                <p className="text-[10px] text-stone-400">مركز الضمان والاسترجاع الذكي</p>
+                <p className="text-[10px] text-stone-400">مركز معالجة الطلبات</p>
               </div>
             </div>
             
@@ -299,7 +299,7 @@ export default function CustomerPortal({
               <div className="space-y-4">
                 <div className="bg-teal-900 text-white p-5 rounded-2xl smooth-shadow space-y-1">
                   <h2 className="text-sm font-bold">نهتم بتجربتك دوماً!</h2>
-                  <p className="text-[11px] text-teal-100 leading-relaxed">أهلاً بك في البوابة الفورية لتعويض المنتجات. نسعد بحل أي مشكلة واجهت طلبك بكل سلاسة وفي خطوات بسيطة.</p>
+                  <p className="text-[11px] text-teal-100 leading-relaxed">أهلاً بك في البوابة الموحدة لمراجعة طلباتكم. نسعد بمعالجة طلبك بكل سلاسة وفي خطوات بسيطة.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -339,10 +339,10 @@ export default function CustomerPortal({
               <div className="bg-stone-50 border border-stone-200/40 p-3.5 rounded-2xl space-y-1 text-xs">
                 <span className="font-bold text-stone-800 flex items-center gap-1">
                   <HelpCircle className="w-3.5 h-3.5 text-teal-600" />
-                  <span>سياسة استرجاع نجد للقهوة</span>
+                  <span>سياسة نجد للقهوة</span>
                 </span>
                 <p className="text-[10px] text-stone-500 leading-relaxed">
-                  نقبل استرجاع البن والمطاحن السليمة خلال ١٥ يوماً من استلام الشحنة. يتحمل المتجر كافة تكاليف الشحن العكسي للعميل في حال وجود عيب مصنعي أو كسر في السلعة.
+                  نقبل معالجة الطلبات للمنتجات المستلمة خلال ١٥ يوماً من الاستلام. وتتم المعالجة والخطوات التالية حسب سياسة المتجر المعتمدة.
                 </p>
               </div>
             </div>
@@ -401,20 +401,20 @@ export default function CustomerPortal({
             <div className="flex-1 flex flex-col justify-between">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold text-stone-900">ما نوع التعويض أو البلاغ المطلوب؟</h2>
+                  <h2 className="text-sm font-bold text-stone-900">ما نوع الإجراء المطلوب؟</h2>
                   <p className="text-[10px] text-stone-400 mt-1">اختر الإجراء الذي يناسب حالتك الحالية للمتابعة.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 pt-4">
-                  {/* Option 1: Return (Refund) */}
+                  {/* Option 1: Return */}
                   <button
                     onClick={() => { setRequestType('return'); setScreen('form'); }}
                     className="p-4 text-right bg-white rounded-2xl border border-stone-200 hover:border-teal-500 hover:bg-teal-50/20 smooth-shadow flex items-start gap-3 transition-all cursor-pointer"
                   >
                     <span className="p-2 bg-amber-50 text-amber-700 rounded-xl mt-0.5"><CreditCard className="w-4 h-4" /></span>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-stone-900">استرجاع السلعة</h4>
-                      <p className="text-[10px] text-stone-400">لطلب إرجاع السلعة المشتراة واسترداد قيمتها وفقاً لسياسة المتجر.</p>
+                      <h4 className="text-xs font-bold text-stone-900">إرجاع السلعة</h4>
+                      <p className="text-[10px] text-stone-400">لطلب إرجاع السلعة المشتراة وفقاً لسياسة المتجر.</p>
                     </div>
                   </button>
 
@@ -426,7 +426,7 @@ export default function CustomerPortal({
                     <span className="p-2 bg-teal-50 text-teal-700 rounded-xl mt-0.5"><RefreshCw className="w-4 h-4" /></span>
                     <div className="space-y-1">
                       <h4 className="text-xs font-bold text-stone-900">استبدال مقاس أو نوع المنتج</h4>
-                      <p className="text-[10px] text-stone-400">لاستبدال مقاس عباية أو نوع ماكينة ومطحنة ببديل آخر مع تنسيق شحن القطعة البديلة.</p>
+                      <p className="text-[10px] text-stone-400">لاستبدال مقاس عباية أو نوع ماكينة ومطحنة ببديل آخر حسب سياسة المتجر.</p>
                     </div>
                   </button>
 
@@ -438,7 +438,7 @@ export default function CustomerPortal({
                     <span className="p-2 bg-rose-50 text-rose-700 rounded-xl mt-0.5"><AlertCircle className="w-4 h-4" /></span>
                     <div className="space-y-1">
                       <h4 className="text-xs font-bold text-stone-900">تقديم شكوى أو بلاغ بخصوص الطلب</h4>
-                      <p className="text-[10px] text-stone-400">لرفع بلاغ فوري عن مشاكل الطلب الأخرى، تأخر الشحنات، السلع الناقصة أو سوء المعاملة.</p>
+                      <p className="text-[10px] text-stone-400">لرفع بلاغ فوري عن مشاكل الطلب الأخرى، تأخر التوصيل، السلع الناقصة أو غيرها.</p>
                     </div>
                   </button>
                 </div>
@@ -458,7 +458,7 @@ export default function CustomerPortal({
             <form onSubmit={handleSubmitRequest} className="flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-3">
                 <div>
-                  <h2 className="text-sm font-bold text-stone-900">تعبئة تفاصيل طلب التعويض</h2>
+                  <h2 className="text-sm font-bold text-stone-900">تعبئة تفاصيل الطلب</h2>
                   <p className="text-[10px] text-stone-400">المنتج المتأثر المجلوب تلقائياً من نظام الفواتير:</p>
                 </div>
 
@@ -536,7 +536,7 @@ export default function CustomerPortal({
                 type="submit"
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl text-xs font-bold shadow-xs cursor-pointer"
               >
-                تأكيد وإرسال طلب التعويض &larr;
+                تأكيد وإرسال الطلب &larr;
               </button>
             </form>
           )}
@@ -631,19 +631,19 @@ export default function CustomerPortal({
                           <span className="font-bold text-teal-800 font-mono">{trackedRequest.id}</span>
                           <span className="text-[10px] text-stone-400 font-mono">{trackedRequest.createdAt.split('T')[0]}</span>
                         </div>
-                        <p className="text-stone-700">مرحلة طلب التعويض الحالية:</p>
+                        <p className="text-stone-700 font-medium">حالة الطلب الحالية:</p>
                         <span className="block font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-100 text-center text-[11px] leading-relaxed">
                           {getCustomerFriendlyStatus(trackedRequest.status)}
                         </span>
                         
                         {trackedRequest.status === 'completed' && (
                           <div className="p-2 bg-emerald-50 text-emerald-800 text-[10px] rounded leading-relaxed border border-emerald-100 text-center font-bold">
-                            🎉 تهانينا! تم تحويل مبلغ التعويض أو اعتماد الإجراء وإغلاق المعالجة بنجاح.
+                            🎉 تم إكمال الطلب حسب سياسة المتجر.
                           </div>
                         )}
                         {trackedRequest.status === 'rejected' && (
                           <div className="p-2 bg-stone-50 text-stone-800 text-[10px] rounded leading-relaxed border border-stone-200 text-center">
-                            تم البت في طلبك وإغلاقه. يُرجى مراجعة ملحوظات القرار النهائي بالأسفل.
+                            سيقوم المتجر بمراجعة طلبك وإبلاغك بالخطوات التالية حسب سياسة المتجر.
                           </div>
                         )}
 
@@ -731,7 +731,7 @@ export default function CustomerPortal({
 
                       {/* Customer-friendly timeline with translated milestones */}
                       <div className="space-y-3.5">
-                        <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">سجل الخطوات المكتملة لمرتجعك</h4>
+                        <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">سجل الخطوات المكتملة للطلب</h4>
                         
                         <div className="relative border-r border-stone-200 mr-3 pr-5 space-y-5">
                           {/* Step 1: Created */}
@@ -739,7 +739,7 @@ export default function CustomerPortal({
                             <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-teal-600"></span>
                             <div className="text-xs">
                               <p className="font-bold text-stone-800">تلقي طلب المشتري بالنظام</p>
-                              <p className="text-[10px] text-stone-500">تم تسجيل تفاصيل السلعة المرتجعة وبدء التدقيق المبدئي.</p>
+                              <p className="text-[10px] text-stone-500">تم تسجيل تفاصيل الطلب وبدء التدقيق المبدئي.</p>
                             </div>
                           </div>
 
@@ -749,7 +749,7 @@ export default function CustomerPortal({
                               <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-amber-500 animate-pulse"></span>
                               <div className="text-xs">
                                 <p className="font-bold text-stone-800">قيد المراجعة والتدقيق الإداري</p>
-                                <p className="text-[10px] text-stone-500">يقوم ممثلو خدمة المبيعات بمطابقة طلبك لاعتماد تفعيل بوليصة الشحن.</p>
+                                <p className="text-[10px] text-stone-500">يقوم ممثلو خدمة العملاء بمطابقة طلبك ومراجعته.</p>
                               </div>
                             </div>
                           )}
@@ -759,8 +759,8 @@ export default function CustomerPortal({
                             <div className="relative">
                               <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'approved' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
                               <div className="text-xs">
-                                <p className="font-bold text-stone-800">تم قبول الطلب وجاري الشحن للمستودع</p>
-                                <p className="text-[10px] text-stone-500">تم قبول المرتجع مبدئياً وجاري استلام القطع لإجراء الفحص الفني والتقييم.</p>
+                                <p className="font-bold text-stone-800">تم قبول الطلب وجاري تسليم المنتج للمستودع</p>
+                                <p className="text-[10px] text-stone-500">تم قبول الطلب مبدئياً وجاري استلام القطع لإجراء الفحص والتقييم حسب سياسة المتجر.</p>
                               </div>
                             </div>
                           )}
@@ -770,8 +770,8 @@ export default function CustomerPortal({
                             <div className="relative">
                               <span className={`absolute -right-[24px] top-0.5 w-3 h-3 rounded-full ${trackedRequest.status === 'received' ? 'bg-amber-500 animate-pulse' : 'bg-teal-600'}`}></span>
                               <div className="text-xs">
-                                <p className="font-bold text-stone-800">وصول الشحنة وتفتيش المستودع</p>
-                                <p className="text-[10px] text-stone-500">تم تفتيش المنتج في المستودع والتحقق من حالته لإصدار القرار والتسوية النهائية للعميل.</p>
+                                <p className="font-bold text-stone-800">وصول المنتج وفحصه في المستودع</p>
+                                <p className="text-[10px] text-stone-500">تم تفتيش المنتج في المستودع والتحقق من حالته لإصدار القرار وإكمال الطلب حسب السياسة المعتمدة.</p>
                               </div>
                             </div>
                           )}
@@ -781,8 +781,8 @@ export default function CustomerPortal({
                             <div className="relative font-bold">
                               <span className="absolute -right-[24px] top-0.5 w-3 h-3 rounded-full bg-emerald-600"></span>
                               <div className="text-xs text-emerald-700">
-                                <p className="font-bold">تم إتمام التسوية وإغلاق الطلب بنجاح</p>
-                                <p className="text-[10px] text-emerald-600/80">تم إصدار التسوية النهائية وتغذية حسابك بالتعويض المالي أو المنتج البديل.</p>
+                                <p className="font-bold">تم إكمال الطلب بنجاح</p>
+                                <p className="text-[10px] text-emerald-600/80 font-normal">تم إكمال ومعالجة الطلب بنجاح طبقاً لسياسة المتجر.</p>
                               </div>
                             </div>
                           )}
@@ -800,7 +800,7 @@ export default function CustomerPortal({
               </div>
 
               <div className="text-[10px] text-center text-stone-400">
-                مجموع طلبات الضمان المفتوحة بالنظام: {requests.length} طلب
+                مجموع الطلبات المفتوحة بالنظام: {requests.length} طلب
               </div>
             </div>
           )}

@@ -17,10 +17,11 @@ export type RequestStatus =
   | 'cancelled';              // ملغي
 
 export type InspectionCondition =
-  | 'clean_restock'   // سليم - إعادة للمخزون
-  | 'damaged_scrap'   // تالف - إتلاف
-  | 'used_discount'   // مستعمل - بيع مخفض
-  | 'wrong_item';     // منتج خاطئ - إرجاع للعميل
+  | 'good_condition'       // سليم وبحالة ممتازة
+  | 'damaged'              // تالف
+  | 'used'                 // مستعمل
+  | 'wrong_item'           // منتج خاطئ
+  | 'missing_accessories'; // نقص ملحقات / إكسسوارات
 
 export interface WarehouseInspection {
   inspectedBy: string;

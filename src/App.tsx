@@ -10,6 +10,7 @@ import RoleSelector from './components/RoleSelector';
 import AdminPanel from './components/AdminPanel';
 import MerchantDashboard from './components/MerchantDashboard';
 import CustomerPortal from './components/CustomerPortal';
+import { MerchantLoginMock, ActivateAccountMock } from './components/MerchantAuthMock';
 
 export default function App() {
   // Global React state
@@ -20,6 +21,7 @@ export default function App() {
   // Active view state
   const [currentArea, setCurrentArea] = useState<'merchant' | 'admin' | 'customer'>('merchant');
   const [merchantRole, setMerchantRole] = useState<'store_owner' | 'customer_support' | 'warehouse_agent'>('store_owner');
+  const [merchantSubView, setMerchantSubView] = useState<'dashboard' | 'login' | 'activate'>('dashboard');
 
   // Handle creating a new store (Platform Admin Panel Action)
   const handleCreateStore = (newStoreData: Omit<Store, 'createdAt' | 'requestsCount'>) => {
@@ -111,24 +113,25 @@ export default function App() {
             isInternalEvent = true; // Internal: masked from customer
             break;
           case 'approved':
-            eventTitle = 'قبول مبدئي وتنسيق الشحن';
-            eventDesc = 'تمت الموافقة المبدئية على طلبكم، وجاري تنسيق استلام الشحنة العكسية للمستودع.';
+            eventTitle = 'قبول مبدئي ومتابعة الطلب';
+            eventDesc = 'تمت الموافقة المبدئية على طلبكم، وجاري متابعة الخطوات التالية لتسليم المنتج للمستودع.';
             break;
           case 'rejected':
-            eventTitle = 'رفض الطلب وإغلاقه بشكل نهائي';
-            eventDesc = 'تم رفض طلب التعويض وتوضيح المبررات التنظيمية للعميل.';
+            eventTitle = 'رفض الطلب وإغلاقه';
+            eventDesc = 'تم رفض الطلب وتوضيح المبررات التنظيمية للعميل.';
             break;
           case 'received':
-            eventTitle = 'استلام الشحنة في المستودع';
+            eventTitle = 'استلام المنتج في المستودع';
             const condText = 
-              additionalData?.inspection?.condition === 'clean_restock' ? 'سليم وجاهز لإعادة البيع' :
-              additionalData?.inspection?.condition === 'damaged_scrap' ? 'تالف وإتلاف فوري' :
-              additionalData?.inspection?.condition === 'used_discount' ? 'مستعمل خفيف - تصنيف مخفض' : 'منتج خاطئ';
+              additionalData?.inspection?.condition === 'good_condition' ? 'سليم وبحالة ممتازة' :
+              additionalData?.inspection?.condition === 'damaged' ? 'تالف' :
+              additionalData?.inspection?.condition === 'used' ? 'مستعمل' :
+              additionalData?.inspection?.condition === 'wrong_item' ? 'منتج خاطئ' : 'نقص ملحقات/إكسسوارات';
             eventDesc = `وصل المنتج للمستودع وتم فحصه. الحالة: ${condText}. تقرير الفحص: ${additionalData?.inspection?.notes || ''}`;
             break;
           case 'completed':
-            eventTitle = 'اعتماد التسوية وإكمال الطلب';
-            eventDesc = 'تمت الموافقة النهائية واعتماد إكمال الإجراء والتسوية المالية/العينية للطلب بنجاح.';
+            eventTitle = 'إكمال الطلب';
+            eventDesc = 'تمت الموافقة النهائية وإكمال معالجة الطلب بنجاح حسب سياسة المتجر.';
             break;
           case 'cancelled':
             eventTitle = 'إلغاء الطلب';
@@ -186,13 +189,68 @@ export default function App() {
         )}
 
         {currentArea === 'merchant' && (
-          <MerchantDashboard
-            role={merchantRole}
-            requests={requests.filter(r => r.storeId === 'store-1')} // Filter to Najd Coffee mock for high-fidelity merchant simulation
-            teamMembers={teamMembers}
-            onUpdateRequestStatus={handleUpdateRequestStatus}
-            onUpdateRequest={handleUpdateFullRequest}
-          />
+          <div className="flex flex-col gap-4">
+            {/* Sub-view Selector for Auth Prototype Screens */}
+            <div className="bg-stone-100 border-b border-stone-200/60 py-2 px-4 md:px-8">
+              <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+                <span className="text-[11px] text-stone-500 font-medium">عرض صفحات النموذج الأولي (UI Prototype Pages):</span>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setMerchantSubView('dashboard')}
+                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      merchantSubView === 'dashboard'
+                        ? 'bg-teal-600 text-white font-bold shadow-sm'
+                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    لوحة تحكم المتجر (Dashboard)
+                  </button>
+                  <button
+                    onClick={() => setMerchantSubView('login')}
+                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      merchantSubView === 'login'
+                        ? 'bg-teal-600 text-white font-bold shadow-sm'
+                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    تسجيل دخول التاجر (Merchant Login)
+                  </button>
+                  <button
+                    onClick={() => setMerchantSubView('activate')}
+                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      merchantSubView === 'activate'
+                        ? 'bg-teal-600 text-white font-bold shadow-sm'
+                        : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                    }`}
+                  >
+                    تنشيط الحساب (Activate Account)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {merchantSubView === 'dashboard' && (
+              <MerchantDashboard
+                role={merchantRole}
+                requests={requests.filter(r => r.storeId === 'store-1')} // Filter to Najd Coffee mock for high-fidelity merchant simulation
+                teamMembers={teamMembers}
+                onUpdateRequestStatus={handleUpdateRequestStatus}
+                onUpdateRequest={handleUpdateFullRequest}
+              />
+            )}
+
+            {merchantSubView === 'login' && (
+              <div className="py-12 px-4">
+                <MerchantLoginMock onSuccess={() => setMerchantSubView('dashboard')} />
+              </div>
+            )}
+
+            {merchantSubView === 'activate' && (
+              <div className="py-12 px-4">
+                <ActivateAccountMock onSuccess={() => setMerchantSubView('dashboard')} />
+              </div>
+            )}
+          </div>
         )}
 
         {currentArea === 'customer' && (

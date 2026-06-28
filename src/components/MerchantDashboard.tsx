@@ -92,7 +92,7 @@ export default function MerchantDashboard({
   // Store Settings (with robust state for previewing the portal)
   const [storeLogo, setStoreLogo] = useState('☕');
   const [storeColor, setStoreColor] = useState('#14b8a6'); // Teal 500
-  const [welcomeMessage, setWelcomeMessage] = useState('مرحباً بك في بوابة الدعم والتعويضات الخاصة بـ نجد للقهوة المختصة. نحن هنا لضمان رضاك التام.');
+  const [welcomeMessage, setWelcomeMessage] = useState('مرحباً بك في بوابة الدعم والطلبات الخاصة بـ نجد للقهوة المختصة. نحن هنا لضمان رضاك التام.');
   const [returnPolicy, setReturnPolicy] = useState('يحق للعميل طلب استرجاع أو استبدال المنتجات الغذائية (كالحبوب والبن) في حال وصولها تالفة أو غير مطابقة للطلب خلال ٧ أيام من الاستلام. أما الإكسسوارات والأدوات فيمكن استرجاعها بحالتها الأصلية المغلقة خلال ١٥ يوماً.');
   const [settingsWindow, setSettingsWindow] = useState(15);
   const [reasons, setReasons] = useState<string[]>(['وصول تالف / كسر بالعبوة', 'طعم البن قديم / عيب جودة', 'خطأ في نوع بن الحبوب المرسل', 'المقاس / الحجم غير متوافق']);
@@ -662,15 +662,15 @@ export default function MerchantDashboard({
                           <button
                             onClick={() => {
                               onUpdateRequestStatus(selectedRequest.id, 'approved', {
-                                internalNotes: actionNotes ? actionNotes : 'تمت الموافقة من ممثل الدعم للارتجاع والتفتيش بالمستودع.'
+                                internalNotes: actionNotes ? actionNotes : 'تمت الموافقة المبدئية وتوجيه المنتج للمستودع للتقييم.'
                               });
                               setSelectedRequest({ ...selectedRequest, status: 'approved' });
                               setActionNotes('');
-                              alert('تمت الموافقة المبدئية بنجاح! تم إصدار بوليصة وتوجيه الطلب للمستودع للفحص الفعلي.');
+                              alert('تمت الموافقة المبدئية بنجاح! تم قبول الطلب مبدئياً وتوجيهه للمستودع للفحص والتقييم.');
                             }}
                             className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                           >
-                            موافقة وتوليد بوليصة الشحن (للأقسام)
+                            قبول مبدئي للطلب وتوجيهه للمستودع
                           </button>
 
                           <button
@@ -745,11 +745,11 @@ export default function MerchantDashboard({
                                   internalNotes: 'قرار المالك النهائي: موافقة كاملة بعد التصعيد.'
                                 });
                                 setSelectedRequest({ ...selectedRequest, status: 'approved' });
-                                alert('تم تجاوز التحذير والموافقة على التعويض بقرار من المالك!');
+                                alert('تمت الموافقة على الطلب بقرار من المالك!');
                               }}
                               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                             >
-                              قرار المالك: موافقة وتوليد بوليصة
+                              قرار المالك: موافقة واعتماد الطلب
                             </button>
 
                             <button
@@ -771,33 +771,33 @@ export default function MerchantDashboard({
                       {/* Direct settlement for received returns by Owner */}
                       {selectedRequest.status === 'received' && (
                         <div className="p-4 bg-teal-50/40 border border-teal-100 rounded-xl space-y-3">
-                          <p className="text-xs text-teal-950 font-bold">تم فحص السلعة في المستودع بنجاح. بصفتك مالك المتجر، يرجى إجراء التسوية النهائية للعميل:</p>
+                          <p className="text-xs text-teal-950 font-bold">تم فحص السلعة في المستودع بنجاح. بصفتك مالك المتجر، يرجى إجراء المراجعة النهائية للطلب وإكماله:</p>
                           
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
                                 onUpdateRequestStatus(selectedRequest.id, 'completed', {
-                                  internalNotes: 'تم التسوية المالية من المالك، تعويض المشتري واستكمال تذكرة حلها.'
+                                  internalNotes: 'قرار المالك النهائي: إكمال ومعالجة الطلب بالكامل.'
                                 });
                                 setSelectedRequest({ ...selectedRequest, status: 'completed' });
-                                alert('تم إجراء التسوية والتعويض بنجاح وإغلاق التذكرة بنظام حلّها!');
+                                alert('تم إكمال الطلب بنجاح وإغلاقه بنظام حلّها!');
                               }}
                               className="bg-teal-700 hover:bg-teal-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                             >
-                              اعتماد التعويض وإكمال التذكرة (Completed)
+                              إكمال ومعالجة الطلب (Completed)
                             </button>
 
                             <button
                               onClick={() => {
                                 onUpdateRequestStatus(selectedRequest.id, 'rejected', {
-                                  internalNotes: 'تم الرفض النهائي بعد الاستلام لعدم تطابق الفحص الفعلي للرفوف.'
+                                  internalNotes: 'قرار المالك النهائي: الرفض النهائي بعد استلام وفحص المنتج.'
                                 });
                                 setSelectedRequest({ ...selectedRequest, status: 'rejected' });
-                                alert('تم رفض تسوية التعويض بعد الفحص.');
+                                alert('تم رفض الطلب نهائياً بعد الفحص.');
                               }}
                               className="bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                             >
-                              رفض تسوية التعويض
+                              رفض الطلب بعد المراجعة
                             </button>
                           </div>
                         </div>
@@ -814,18 +814,18 @@ export default function MerchantDashboard({
                     <div className="space-y-4">
                       {selectedRequest.status === 'approved' && (
                         <div className="space-y-2">
-                          <p className="text-xs text-stone-600 font-medium">الشحنة لم تصل المستودع فعلياً بعد، عند وصول المندوب بالكرتون يرجى تأكيد استلامها الفعلي:</p>
+                          <p className="text-xs text-stone-600 font-medium">المنتج لم يصل المستودع فعلياً بعد، عند استلام الطرد يرجى تأكيد الاستلام الفعلي للبدء بالفحص:</p>
                           <button
                             onClick={() => {
                               onUpdateRequestStatus(selectedRequest.id, 'received', {
-                                internalNotes: 'أكد المستودع وصول شحنة الارتجاع الفعلي بكرتون سمسا.'
+                                internalNotes: 'أكد المستودع وصول الطرد وبدء الفحص الفني.'
                               });
                               setSelectedRequest({ ...selectedRequest, status: 'received' });
-                              alert('تم تسجيل استلام الشحنة فعلياً في المستودع! يرجى البدء في تعبئة استمارة التفتيش لتسجيل العيوب.');
+                              alert('تم تسجيل استلام المنتج في المستودع! يرجى البدء في تعبئة استمارة التفتيش لتسجيل حالة السلعة.');
                             }}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                           >
-                            تأكيد استلام الطرد الفعلي (Mark Received)
+                            تأكيد استلام المنتج والبدء في الفحص
                           </button>
                         </div>
                       )}
@@ -842,10 +842,11 @@ export default function MerchantDashboard({
                                 onChange={(e) => setInspectionCondition(e.target.value as InspectionCondition)}
                                 className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                               >
-                                <option value="clean_restock">ممتازة (مغلق وبحالة جديدة للرفوف)</option>
-                                <option value="used_discount">بها عيب خفيف (عرض بيع مخفض)</option>
-                                <option value="damaged_scrap">تالفة كلياً / كسر / استخدام (إهلاك وتخريد)</option>
-                                <option value="wrong_item">منتج خاطئ (سيتم إعادته للمشتري)</option>
+                                <option value="good_condition">ممتازة (بحالة جديدة للرفوف)</option>
+                                <option value="used">مستخدم (به آثار استخدام خفيفة)</option>
+                                <option value="damaged">تالف (به تلفيات أو كسور واضحة)</option>
+                                <option value="wrong_item">منتج خاطئ (غير مطابق للسلعة الأصلية)</option>
+                                <option value="missing_accessories">نقص ملحقات (العناصر المرفقة ناقصة)</option>
                               </select>
                             </div>
                             <div>
@@ -854,29 +855,17 @@ export default function MerchantDashboard({
                                 type="text"
                                 value={inspectionNotes}
                                 onChange={(e) => setInspectionNotes(e.target.value)}
-                                placeholder="مثال: الغلاف مفتوح، العبوة تالفة من الجانب اليمين..."
+                                placeholder="مثال: الغلاف مفتوح، السلعة سليمة وبكامل الملحقات..."
                                 className="w-full px-3 py-2 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                               />
                             </div>
                           </div>
 
-                          <button
-                            onClick={() => {
-                              onUpdateRequestStatus(selectedRequest.id, 'under_review', {
-                                internalNotes: 'أنهى المستودع تفتيش الشحنة وسجل نتيجتها في النظام.',
-                                inspection: {
-                                  inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
-                                  inspectedAt: new Date().toISOString().split('T')[0],
-                                  condition: inspectionCondition,
-                                  notes: inspectionNotes || 'تطابق كامل للمواصفات.'
-                                }
-                              });
-                              
-                              const refreshed = requests.find(r => r.id === selectedRequest.id);
-                              if (refreshed) {
-                                setSelectedRequest({
-                                  ...refreshed,
-                                  status: 'under_review',
+                          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-stone-200/50 mt-2">
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'under_review', {
+                                  internalNotes: 'أنهى المستودع تفتيش المنتج وسجل نتيجتها في النظام.',
                                   inspection: {
                                     inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
                                     inspectedAt: new Date().toISOString().split('T')[0],
@@ -884,16 +873,43 @@ export default function MerchantDashboard({
                                     notes: inspectionNotes || 'تطابق كامل للمواصفات.'
                                   }
                                 });
-                              } else {
-                                setSelectedRequest(null);
-                              }
-                              setInspectionNotes('');
-                              alert('تم إرسال استمارة تفتيش المستودع بنجاح وتحويل الطلب للمراجعة النهائية للدعم الفني!');
-                            }}
-                            className="bg-indigo-700 hover:bg-indigo-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition w-full"
-                          >
-                            حفظ وإرسال تقرير تفتيش المستودع لممثل الدعم
-                          </button>
+                                
+                                const refreshed = requests.find(r => r.id === selectedRequest.id);
+                                if (refreshed) {
+                                  setSelectedRequest({
+                                    ...refreshed,
+                                    status: 'under_review',
+                                    inspection: {
+                                      inspectedBy: 'بندر العتيبي (أخصائي المستودع)',
+                                      inspectedAt: new Date().toISOString().split('T')[0],
+                                      condition: inspectionCondition,
+                                      notes: inspectionNotes || 'تطابق كامل للمواصفات.'
+                                    }
+                                  });
+                                } else {
+                                  setSelectedRequest(null);
+                                }
+                                setInspectionNotes('');
+                                alert('تم إرسال استمارة تفتيش المستودع بنجاح وتحويل الطلب للمراجعة النهائية للدعم الفني!');
+                              }}
+                              className="bg-indigo-700 hover:bg-indigo-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition flex-1"
+                            >
+                              تأكيد فحص السلعة واستلامها (Confirm Inspection & Receipt)
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                onUpdateRequestStatus(selectedRequest.id, 'under_review', {
+                                  internalNotes: 'أعاد أخصائي المستودع الطلب لممثلي الدعم للمراجعة والتدقيق الإضافي.'
+                                });
+                                setSelectedRequest({ ...selectedRequest, status: 'under_review' });
+                                alert('تمت إعادة الطلب للمراجعة من الدعم وتغيير الحالة بنجاح!');
+                              }}
+                              className="bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
+                            >
+                              إعادة الطلب للمراجعة من الدعم (Return to Support)
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -1250,8 +1266,8 @@ export default function MerchantDashboard({
 
                 {ownerTab === 'escalated' && (
                   <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs space-y-4">
-                    <h3 className="text-sm font-bold text-stone-900">طلبات التعويض المصعّدة لمكتب المالك مباشرة</h3>
-                    <p className="text-xs text-stone-500">حالات تتجاوز مسطرة الموافقة التلقائية لسياسة الدعم وتتطلب تدقيقاً مالياً أو تشغيلياً منك.</p>
+                    <h3 className="text-sm font-bold text-stone-900">الالتباسات والطلبات المصعّدة لمكتب المالك مباشرة</h3>
+                    <p className="text-xs text-stone-500">حالات تتطلب تدقيقاً وموافقة مباشرة من مالك المتجر لاتخاذ القرار حسب سياسة المتجر.</p>
 
                     <div className="divide-y divide-stone-100 font-medium">
                       {requests.filter(r => r.status === 'escalated_to_owner').map((req) => (
@@ -1743,7 +1759,7 @@ export default function MerchantDashboard({
                       <div className="space-y-1">
                         <h4 className="text-xs font-bold text-indigo-950 uppercase">تعليمات استلام السلع وفحصها بالمخزن</h4>
                         <p className="text-xs text-indigo-900 leading-relaxed pt-1 font-medium">
-                          تطابق كامل لـ SKU السلع والرمز الشريطي مع تفاصيل بوليصة حلّها المرفقة. في حال فتح الغلاف أو استخدام الماكينات يتم تدوين ذلك بدقة، حيث ستقوم الإدارة العليا بالإغلاق بناء على مدخلات تفتيشك.
+                          تطابق كامل لـ SKU السلع والرمز الشريطي مع تفاصيل طلب حلّها المرفق. في حال فتح الغلاف أو استخدام المنتجات يتم تدوين ذلك بدقة، حيث ستقوم الإدارة العليا بالمعالجة بناء على مدخلات تفتيشك.
                         </p>
                       </div>
                     </div>
@@ -1850,7 +1866,7 @@ export default function MerchantDashboard({
                   required
                   value={escalationReasonInput}
                   onChange={(e) => setEscalationReasonInput(e.target.value)}
-                  placeholder="مثال: يطالب العميل بتعويض مالي لسلعة تم شحنها بشكل سليم ولكنها تضررت بسبب عيب فني بالهيكل الأصلي. نوصي بالموافقة الاستثنائية..."
+                  placeholder="مثال: يطالب العميل بمعالجة لسلعة تم تسليمها بشكل سليم ولكنها تضررت بسبب عيب فني بالهيكل الأصلي. نوصي بالموافقة الاستثنائية..."
                   className="w-full p-2.5 border border-stone-200 rounded-xl text-xs h-24 focus:outline-none focus:ring-1 focus:ring-rose-500 bg-[#fbfaf8]"
                 />
               </div>
@@ -2034,8 +2050,8 @@ export default function MerchantDashboard({
                 {/* Logo and header with store theme color */}
                 <div className="p-6 text-white text-center space-y-2 relative" style={{ backgroundColor: storeColor }}>
                   <span className="text-4xl block">{storeLogo}</span>
-                  <h3 className="text-base font-bold">بوابة التعويضات الذكية</h3>
-                  <p className="text-[10px] text-white/80">تداول آمن وحر بالتعاون مع منصة حلّها</p>
+                  <h3 className="text-base font-bold">بوابة طلبات العملاء الذكية</h3>
+                  <p className="text-[10px] text-white/80">معالجة فورية بالتعاون مع منصة حلّها</p>
                 </div>
 
                 <div className="p-4 space-y-4 flex-1">
@@ -2047,7 +2063,7 @@ export default function MerchantDashboard({
 
                   {/* policies preview */}
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-100 text-right space-y-1">
-                    <span className="text-[9px] text-stone-400 block">شروط وسياسة التعويض:</span>
+                    <span className="text-[9px] text-stone-400 block">شروط وسياسة المتجر:</span>
                     <p className="text-xs text-stone-600 leading-relaxed">{returnPolicy}</p>
                   </div>
 
@@ -2066,7 +2082,7 @@ export default function MerchantDashboard({
                   {/* Action preview */}
                   <div className="space-y-2 pt-2">
                     <button className="w-full text-white py-2.5 rounded-xl text-xs font-bold text-center block shadow-xs" style={{ backgroundColor: storeColor }}>
-                      البدء في رفع تذكرة تعويض جديدة
+                      البدء في رفع طلب جديد
                     </button>
                     <p className="text-[9px] text-stone-400 text-center leading-relaxed">بموجب أنظمة حماية المستهلك الموحدة لغرفة التجارة الإلكترونية.</p>
                   </div>

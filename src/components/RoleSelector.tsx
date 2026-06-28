@@ -25,6 +25,9 @@ export default function RoleSelector({
         <span className="bg-teal-600 text-white font-bold px-2.5 py-1 rounded text-sm tracking-wide">
           حلّها HAL-LA
         </span>
+        <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+          Demo Mode - للتنقل بين الأدوار في النموذج فقط
+        </span>
         <div className="h-4 w-px bg-stone-700 hidden md:block"></div>
         <p className="text-xs text-stone-400 hidden md:block">
           بيئة عمل تفاعلية لعرض تجربة المستخدم والتدفق البرمجي المتكامل
