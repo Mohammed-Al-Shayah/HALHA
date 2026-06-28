@@ -902,12 +902,28 @@ export default function MerchantDashboard({
                                 onUpdateRequestStatus(selectedRequest.id, 'under_review', {
                                   internalNotes: 'أعاد أخصائي المستودع الطلب لممثلي الدعم للمراجعة والتدقيق الإضافي.'
                                 });
-                                setSelectedRequest({ ...selectedRequest, status: 'under_review' });
+                                const newEvent = {
+                                  id: `ev-${Date.now()}`,
+                                  status: 'under_review' as RequestStatus,
+                                  titleAr: 'قيد المراجعة والتدقيق',
+                                  descriptionAr: 'أعاد أخصائي المستودع الطلب لممثلي الدعم للمراجعة والتدقيق الإضافي.',
+                                  createdAt: new Date().toISOString(),
+                                  actorName: 'بندر العتيبي (أخصائي المستودع)',
+                                  isInternal: false,
+                                };
+                                const updatedTimeline = selectedRequest.timeline ? [...selectedRequest.timeline, newEvent] : [newEvent];
+                                setSelectedRequest({ 
+                                  ...selectedRequest, 
+                                  status: 'under_review',
+                                  internalNotes: 'أعاد أخصائي المستودع الطلب لممثلي الدعم للمراجعة والتدقيق الإضافي.',
+                                  timeline: updatedTimeline,
+                                  updatedAt: new Date().toISOString(),
+                                });
                                 alert('تمت إعادة الطلب للمراجعة من الدعم وتغيير الحالة بنجاح!');
                               }}
                               className="bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition"
                             >
-                              إعادة الطلب للمراجعة من الدعم (Return to Support)
+                              إرجاع للدعم للمراجعة
                             </button>
                           </div>
                         </div>

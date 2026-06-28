@@ -51,7 +51,7 @@ export default function CustomerPortal({
   const [selectedItemPrice, setSelectedItemPrice] = useState(68);
   const [returnReason, setReturnReason] = useState('البن منسكب ومكشوف داخل صندوق التوصيل الكرتوني عند استلامه.');
   const [sizeDesired, setSizeDesired] = useState('56');
-  const [complaintType, setComplaintType] = useState('تأخر توصيل الشحنة');
+  const [complaintType, setComplaintType] = useState('تأخر وصول الطلب');
   const [customerMsgInput, setCustomerMsgInput] = useState('');
 
   // Completed tracking id
@@ -480,10 +480,10 @@ export default function CustomerPortal({
                       onChange={(e) => setComplaintType(e.target.value)}
                       className="w-full px-2 py-2.5 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 bg-white cursor-pointer"
                     >
-                      <option value="تأخر توصيل الشحنة">تأخر توصيل الشحنة وتتبع شركة الشحن</option>
+                      <option value="تأخر وصول الطلب">تأخر وصول الطلب</option>
                       <option value="سوء معاملة خدمة العملاء">سوء معاملة خدمة العملاء أو الدعم</option>
                       <option value="سلعة ناقصة في الطلب">وصول طلب ناقص أو عناصر مفقودة</option>
-                      <option value="عيب في التغليف الخارجي">تلف أو عيب في تغليف الشحن الخارجي</option>
+                      <option value="مشكلة في التغليف">مشكلة في التغليف</option>
                       <option value="أخرى">أخرى - توضيح التفاصيل بالأسفل</option>
                     </select>
                   </div>
@@ -585,7 +585,7 @@ export default function CustomerPortal({
             <div className="flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-sm font-bold text-stone-900 font-sans">تتبع الطلبات وحالة التسويات</h2>
+                  <h2 className="text-sm font-bold text-stone-900 font-sans">تتبع الطلبات وحالة المعالجة</h2>
                   <p className="text-[10px] text-stone-400 mt-1 font-sans">اكتب رقم تتبع حلّها ورقم الجوال لمشاهدة الموقف الفعلي لطلبك.</p>
                 </div>
 
