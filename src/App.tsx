@@ -285,14 +285,14 @@ export default function App() {
                       <span className="text-[11px] text-stone-500 font-medium">
                         {lang === 'ar' ? 'عرض صفحات النموذج الأولي (UI Prototype Pages):' : 'Prototype UI Pages View:'}
                       </span>
-                      <div className="flex gap-1.5 relative bg-white border border-stone-200/60 p-1 rounded-lg">
+                      <div className="flex gap-1.5 relative bg-white border border-stone-200/60 p-1 rounded-lg overflow-x-auto max-w-full flex-nowrap scrollbar-none">
                         {(['dashboard', 'login', 'activate'] as const).map((view) => {
                           const isActive = merchantSubView === view;
                           return (
                             <button
                               key={view}
                               onClick={() => setMerchantSubView(view)}
-                              className={`relative px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors duration-200 cursor-pointer z-10 select-none ${
+                              className={`relative px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors duration-200 cursor-pointer z-10 select-none flex-shrink-0 whitespace-nowrap ${
                                 isActive ? 'text-white font-bold' : 'text-stone-600 hover:text-stone-900'
                               }`}
                             >

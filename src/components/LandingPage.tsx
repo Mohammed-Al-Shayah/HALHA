@@ -140,14 +140,15 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
   ];
 
   return (
-    <div className="bg-[#faf8f5] text-stone-900 min-h-screen selection:bg-teal-100 overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="bg-[#faf8f5] text-stone-900 min-h-screen selection:bg-teal-100 overflow-x-clip" dir={isAr ? 'rtl' : 'ltr'}>
       
       {/* A. NAVBAR */}
       <motion.header
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: easePremium }}
-        className={`sticky top-14 z-40 transition-all duration-300 ${
+        style={{ top: 'var(--role-selector-height, 56px)' }}
+        className={`sticky z-40 transition-all duration-300 ${
           scrolled 
             ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-stone-200/50 py-3' 
             : 'bg-transparent py-5'
