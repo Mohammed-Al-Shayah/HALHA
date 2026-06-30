@@ -1668,7 +1668,7 @@ export default function MerchantDashboard({
                       </div>
 
                       <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
-                        <span className="text-stone-400 text-xs font-semibold">حالات تم شحنها ومقبولة مبدئياً</span>
+                        <span className="text-stone-400 text-xs font-semibold">حالات مقبولة بانتظار الاستلام</span>
                         <p className="text-4xl font-bold font-mono text-indigo-500 mt-2">{approvedWarehouseCount}</p>
                         <p className="text-[10px] text-stone-400 mt-2 font-medium">بانتظار تأكيد استلام المستودع الفعلي</p>
                       </div>
@@ -1676,7 +1676,7 @@ export default function MerchantDashboard({
                       <div className="bg-white p-5 border border-stone-200 rounded-2xl shadow-xs">
                         <span className="text-stone-400 text-xs font-semibold">تذاكر مستلمة بانتظار مراجعة المالك</span>
                         <p className="text-4xl font-bold font-mono text-stone-900 mt-2">{receivedWarehouseCount}</p>
-                        <p className="text-[10px] text-stone-400 mt-2 font-medium">تقارير تفتيش المستودع مدفوعة بنجاح</p>
+                        <p className="text-[10px] text-stone-400 mt-2 font-medium">تقارير فحص المستودع جاهزة للمراجعة</p>
                       </div>
                     </div>
 

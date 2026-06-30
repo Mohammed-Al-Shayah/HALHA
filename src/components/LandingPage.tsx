@@ -24,7 +24,12 @@ import {
   MessageSquare,
   Clock,
   ArrowUpRight,
-  Send
+  Send,
+  Warehouse,
+  Store,
+  Home,
+  Building2,
+  Crown
 } from 'lucide-react';
 
 // Motion design tokens
@@ -73,6 +78,10 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
   const [demoSubmitted, setDemoSubmitted] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<'support' | 'owner' | 'warehouse'>('support');
   const [scrolled, setScrolled] = useState(false);
+  const [hoveredSize, setHoveredSize] = useState<number | null>(null);
+  const [hoveredRole, setHoveredRole] = useState<number | null>(null);
+  const [hoveredProblem, setHoveredProblem] = useState<number | null>(null);
+  const [hoveredHeroCard, setHoveredHeroCard] = useState<'chaos' | 'solution' | null>(null);
 
   // Monitor scroll for sticky navbar
   useEffect(() => {
@@ -315,16 +324,16 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
           <div className="lg:col-span-6 relative flex items-center justify-center">
             
             {/* Visual background container for the preview */}
-            <div className="relative w-full max-w-lg p-4 bg-stone-100/60 rounded-3xl border border-stone-200/40 shadow-inner overflow-hidden min-h-[400px]">
+            <div className="relative w-full max-w-lg p-6 bg-stone-100/60 rounded-[32px] border border-stone-200/40 shadow-inner overflow-visible min-h-[440px] md:min-h-[460px]">
               
               {/* Organized Flow Line (Decorative SVG path) */}
-              <div className="absolute inset-0 pointer-events-none">
-                <svg className="w-full h-full stroke-teal-200/40 fill-none" strokeWidth="2">
+              <div className="absolute inset-0 pointer-events-none rounded-[32px] overflow-hidden">
+                <svg className="w-full h-full stroke-teal-200/45 fill-none" strokeWidth="2.5">
                   <motion.path 
-                    d="M 50 100 Q 250 50 450 150 T 100 350"
+                    d={isAr ? "M 400 100 Q 250 180 100 320" : "M 100 100 Q 250 180 400 320"}
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
-                    transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
+                    transition={{ duration: 2.5, repeat: Infinity, repeatType: 'reverse', ease: "easeInOut" }}
                   />
                 </svg>
               </div>
@@ -333,44 +342,62 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
               
               {/* Card 1: The Chaos (Incoming messy request) */}
               <motion.div
-                initial={{ opacity: 0, x: -60, y: -40, rotate: -6 }}
-                animate={{ opacity: 1, x: 0, y: 0, rotate: -2 }}
-                transition={{ delay: 0.5, duration: 0.7, ease: easePremium }}
-                whileHover={{ rotate: 0, scale: 1.02 }}
-                className="bg-white p-3.5 rounded-xl border border-stone-200 shadow-md max-w-[260px] relative z-10 transition-all cursor-pointer"
+                onMouseEnter={() => setHoveredHeroCard('chaos')}
+                onMouseLeave={() => setHoveredHeroCard(null)}
+                initial={{ opacity: 0, scale: 0.6, y: -80, rotate: -15 }}
+                animate={{ 
+                  opacity: 1,
+                  scale: hoveredHeroCard === 'chaos' ? 1.04 : 1,
+                  y: hoveredHeroCard === 'chaos' ? -3 : 0,
+                  rotate: hoveredHeroCard === 'chaos' ? 0 : -2,
+                  borderRadius: hoveredHeroCard === 'chaos' ? "35% 65% 35% 65% / 65% 35% 65% 35%" : "16px",
+                  boxShadow: hoveredHeroCard === 'chaos' ? "0 12px 24px -10px rgba(225, 29, 72, 0.15)" : "0 4px 12px -2px rgba(0,0,0,0.05)"
+                }}
+                transition={{ type: "spring", stiffness: 120, damping: 14, delay: 0.2 }}
+                className={`absolute top-6 ${isAr ? 'right-6' : 'left-6'} bg-white p-4 border border-rose-200/80 max-w-[270px] md:max-w-[290px] z-10 cursor-pointer transition-colors duration-300 ${hoveredHeroCard === 'chaos' ? 'bg-rose-50/40 border-rose-300' : 'bg-white'}`}
               >
                 <div className="flex items-start gap-2.5">
-                  <span className="p-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs">⚠️</span>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-stone-500">{isAr ? 'رسالة واتساب غير منظمة' : 'Scattered WhatsApp text'}</p>
-                    <p className="text-[11px] font-medium text-stone-900 leading-snug">
+                  <span className="p-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs shrink-0">⚠️</span>
+                  <div className="space-y-1 text-right">
+                    <p className="text-[10px] font-bold text-rose-500">{isAr ? 'رسالة واتساب غير منظمة' : 'Scattered WhatsApp text'}</p>
+                    <p className="text-[11px] font-bold text-stone-900 leading-snug">
                       {isAr ? '«أهلاً، المقاس طلع صغير مرّة وأبغا أرجعه أو أغيره بس الفاتورة ضايعة وش أسوي؟»' : '"Hello, size is too small. I want to return but lost my invoice. Help!"'}
                     </p>
                   </div>
                 </div>
-                <div className="mt-2 pt-1.5 border-t border-stone-100 flex justify-between items-center">
+                <div className="mt-3 pt-2 border-t border-stone-100 flex justify-between items-center">
                   <span className="text-[9px] text-stone-400 font-mono">09:41 AM</span>
-                  <span className="text-[8px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded-full font-bold">{isAr ? 'تائه' : 'Unresolved'}</span>
+                  <span className="text-[8px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded-full font-bold">{isAr ? 'تائه وضائع' : 'Unresolved'}</span>
                 </div>
               </motion.div>
 
               {/* Arrow transition indicator */}
               <motion.div 
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.1, duration: 0.4 }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/20 z-20 pointer-events-none"
+                animate={{ 
+                  scale: hoveredHeroCard ? 1.15 : 1,
+                  x: isAr ? [0, -4, 0] : [0, 4, 0]
+                }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/30 z-20 pointer-events-none"
               >
-                <ArrowLeft className="w-4 h-4" />
+                {isAr ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
               </motion.div>
 
               {/* Card 2: The Solution (Organized return request) */}
               <motion.div
-                initial={{ opacity: 0, x: 60, y: 40, rotate: 6 }}
-                animate={{ opacity: 1, x: 120, y: 110, rotate: 2 }}
-                transition={{ delay: 0.8, duration: 0.7, ease: easePremium }}
-                whileHover={{ rotate: 0, scale: 1.02 }}
-                className="absolute bg-white p-4 rounded-xl border border-stone-200 shadow-lg max-w-[280px] z-10 transition-all cursor-pointer"
+                onMouseEnter={() => setHoveredHeroCard('solution')}
+                onMouseLeave={() => setHoveredHeroCard(null)}
+                initial={{ opacity: 0, scale: 0.6, y: 80, rotate: 15 }}
+                animate={{ 
+                  opacity: 1,
+                  scale: hoveredHeroCard === 'solution' ? 1.04 : 1,
+                  y: hoveredHeroCard === 'solution' ? -3 : 0,
+                  rotate: hoveredHeroCard === 'solution' ? 0 : 2,
+                  borderRadius: hoveredHeroCard === 'solution' ? "65% 35% 65% 35% / 35% 65% 35% 65%" : "16px",
+                  boxShadow: hoveredHeroCard === 'solution' ? "0 12px 24px -10px rgba(13, 148, 136, 0.15)" : "0 4px 12px -2px rgba(0,0,0,0.05)"
+                }}
+                transition={{ type: "spring", stiffness: 120, damping: 14, delay: 0.5 }}
+                className={`absolute bottom-6 ${isAr ? 'left-6' : 'right-6'} bg-white p-4 border border-teal-200/80 max-w-[280px] md:max-w-[310px] z-10 cursor-pointer transition-colors duration-300 ${hoveredHeroCard === 'solution' ? 'bg-teal-50/35 border-teal-300' : 'bg-white'}`}
               >
                 <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-2">
                   <span className="text-[10px] font-bold text-teal-700 font-mono">HAL-1024</span>
@@ -385,7 +412,7 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                   </motion.span>
                 </div>
                 
-                <div className="space-y-1.5 text-right">
+                <div className="space-y-1.5 text-right w-full">
                   <p className="text-[11px] font-bold text-stone-900 leading-snug">
                     {isAr ? 'طلب استبدال: عباية كتان سوداء' : 'Exchange Request: Black Linen Abaya'}
                   </p>
@@ -394,8 +421,8 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                   </p>
                   
                   <div className="flex items-center gap-2 mt-2 bg-stone-50 p-1.5 rounded-lg border border-stone-100">
-                    <span className="text-xs">📦</span>
-                    <div className="text-[9px]">
+                    <span className="text-xs shrink-0">📦</span>
+                    <div className="text-[9px] text-right">
                       <p className="font-bold text-stone-700">{isAr ? 'تأكيد المستودع: بحالة ممتازة' : 'Warehouse: Perfect Condition'}</p>
                       <p className="text-stone-400">{isAr ? 'فحص تلقائي سليم' : 'Auto check passed'}</p>
                     </div>
@@ -410,70 +437,105 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
       </section>
 
       {/* C. PROBLEM SECTION */}
-      <section className="py-20 bg-stone-50 border-y border-stone-200/50 relative px-6">
-        <div className="max-w-7xl mx-auto space-y-12">
+      <section className="py-24 bg-stone-50 border-y border-stone-200/50 relative px-6 overflow-visible">
+        <div className="max-w-7xl mx-auto space-y-14">
           
           <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-              {isAr ? 'التحديات المعتادة في مرحلة ما بعد البيع' : 'Usual Challenges in Post-Purchase Operations'}
+            <span className="text-xs font-extrabold text-rose-600 bg-rose-50 px-3.5 py-1.5 rounded-full border border-rose-200/60 uppercase tracking-wider font-mono">
+              {isAr ? 'نزيف العمليات والولاء في المتاجر' : 'The Leaks in Post-Purchase Operations'}
             </span>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-stone-900 font-sans">
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-stone-900 font-sans leading-tight">
               {isAr ? 'لماذا يعاني العملاء وأصحاب المتاجر؟' : 'Why Customers and Stores Struggle?'}
             </h2>
-            <p className="text-stone-500 text-xs md:text-sm">
-              {isAr ? 'إدارة الطلبات عبر قنوات متعددة تخلق فجوة تواصل وهدراً للمال والوقت.' : 'Managing requests via multiple channels leads to severe operational leaks.'}
+            <p className="text-stone-500 text-xs md:text-sm max-w-lg mx-auto">
+              {isAr ? 'إدارة المرتجعات والمقاسات البديلة بشكل عشوائي تستنزف فريقك وتدمر ثقة المشترين في علامتك التجارية.' : 'Managing returns and size exchanges without a structured system drains profits and breaks shopper loyalty.'}
             </p>
           </div>
 
-          {/* Staggered fade-up cards */}
+          {/* Staggered fade-up cards with squashed circle hover states */}
           <motion.div 
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
             {[
               {
                 icon: "💬",
-                title: isAr ? "تشتت المحادثات والرسائل" : "Scattered Communications",
+                badge: isAr ? "تسريب مالي ووقتي" : "Financial & Time Leak",
+                title: isAr ? "تشتت طلبات المرتجعات والمقاسات" : "Scattered Return Requests",
                 desc: isAr 
-                  ? "الطلبات موزعة عشوائياً بين محادثات واتساب، رسائل إنستغرام، والبريد الإلكتروني، مما يؤدي لضياع بيانات الفاتورة الأصلية."
-                  : "Return requests scattered across WhatsApp, IG comments, and emails, leading to lost client records and high tension."
+                  ? "تستقبل الطلبات في محادثات واتساب، رسائل إنستغرام، وسناب شات متفرقة، مما يسبب ضياع بيانات العميل وتكرار الأخطاء التشغيلية."
+                  : "Requests scatter randomly across WhatsApp, IG comments, and emails, leading to chaotic spreadsheets and lost customer orders.",
+                baseRadius: "24px",
+                hoverRadius: "45% 55% 45% 55% / 55% 45% 55% 45%"
               },
               {
                 icon: "🕵️",
-                title: isAr ? "غياب المعايير للفحص بالمستودع" : "No Standards for Inspection",
+                badge: isAr ? "بضاعة تالفة ومرفوضة" : "Damaged Stock Loss",
+                title: isAr ? "غياب معايير الفحص والتوثيق" : "No Standardized Inspection",
                 desc: isAr 
-                  ? "تصل المنتجات المرتجعة للمستودع وتُقبل عشوائياً دون فحص دقيق موثق بالصور يضمن سلامة السلعة للبيع مجدداً."
-                  : "Items arrive back at the warehouse and get checked randomly without photo proofs, resulting in bad stock acceptance."
+                  ? "وصول المرتجع للمستودع دون فحص دقيق أو توثيق بالصور يفتح الباب للنزاعات وقبول منتجات تالفة لا يمكن إعادة بيعها."
+                  : "Items arrive back at the warehouse and get processed blindly without photo proof or formal status logs, resulting in bad stock accepting.",
+                baseRadius: "24px",
+                hoverRadius: "55% 45% 55% 45% / 45% 55% 45% 55%"
               },
               {
                 icon: "🤯",
-                title: isAr ? "شيكات مرتجعة وضياع أرقام التتبع" : "No Traceability & Status Disputes",
+                badge: isAr ? "ضغط وغضب العملاء" : "Customer Agony & Disputes",
+                title: isAr ? "فوضى المتابعة وتأخر الاستبدال" : "Delayed Tracking & Disputes",
                 desc: isAr 
-                  ? "يتصل العميل يومياً لمعرفة مصير طلبه بينما يعجز فريق خدمة العملاء عن العثور على حالة العملية بوضوح."
-                  : "Customers keep calling support to ask about status while support agents struggle to locate where the parcel is."
+                  ? "اتصالات متكررة من العملاء للاستفسار عن المقاس البديل، وسط عجز فريق الدعم عن معرفة حالة الشحنة أو مكانها الحالي بدقة."
+                  : "Customers call daily demanding updates about their exchanges, while support agents waste hours searching where the parcel is.",
+                baseRadius: "24px",
+                hoverRadius: "40% 60% 40% 60% / 60% 40% 60% 40%"
               }
-            ].map((p, idx) => (
-              <motion.div
-                key={idx}
-                variants={fadeUpVariants}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                className="bg-white p-6 rounded-2xl border border-stone-200/60 shadow-xs space-y-3 transition-all"
-              >
-                {/* Subtle icon rotation motion */}
-                <motion.div 
-                  className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-xl shadow-inner border border-rose-100/50"
-                  animate={{ rotate: [0, 4, -4, 0] }}
-                  transition={{ repeat: Infinity, duration: 4, delay: idx * 0.3 }}
+            ].map((p, idx) => {
+              const isHovered = hoveredProblem === idx;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                  whileInView={{ 
+                    opacity: 1, 
+                    y: isHovered ? -6 : 0,
+                    scale: isHovered ? 1.03 : 1
+                  }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  onMouseEnter={() => setHoveredProblem(idx)}
+                  onMouseLeave={() => setHoveredProblem(null)}
+                  transition={{ type: "spring", stiffness: 140, damping: 13, delay: idx * 0.15 }}
+                  className={`relative p-8 rounded-3xl border smooth-shadow flex flex-col justify-between min-h-[300px] transition-colors duration-300 overflow-visible cursor-pointer ${isHovered ? 'bg-[#fff5f5] border-rose-300' : 'bg-white border-stone-200/70'}`}
                 >
-                  {p.icon}
+                  <div className="space-y-4 text-right w-full">
+                    <div className="flex justify-between items-center">
+                      <motion.div 
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-inner border transition-colors duration-300 ${isHovered ? 'bg-rose-100/80 border-rose-300 text-rose-600' : 'bg-rose-50 border-rose-100/50'}`}
+                        animate={{ rotate: isHovered ? [0, 8, -8, 0] : 0 }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        {p.icon}
+                      </motion.div>
+                      <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border transition-colors duration-300 uppercase tracking-wide font-mono ${isHovered ? 'bg-rose-100/50 border-rose-300 text-rose-700' : 'bg-stone-100 border-stone-200/60 text-stone-500'}`}>
+                        {p.badge}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-extrabold text-stone-900">{p.title}</h3>
+                      <p className="text-stone-500 text-[12px] leading-relaxed">{p.desc}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Small red hint indicator in the bottom corner on hover */}
+                  <div className="absolute bottom-4 left-4">
+                    <span className={`text-xs font-bold font-sans transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0 text-rose-600' : 'opacity-0 translate-x-2 text-stone-400'}`}>
+                      {isAr ? '← تفاصيل المشكلة' : 'Details →'}
+                    </span>
+                  </div>
                 </motion.div>
-                <h3 className="text-sm font-bold text-stone-900">{p.title}</h3>
-                <p className="text-stone-500 text-[11px] leading-relaxed">{p.desc}</p>
-              </motion.div>
-            ))}
+              );
+            })}
           </motion.div>
         </div>
       </section>
@@ -691,9 +753,9 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
               },
               {
                 icon: <CheckCircle2 className="w-5 h-5 text-teal-600" />,
-                title: isAr ? "أمان كامل وعزل للبيانات الماليّة" : "Zero Finance / Sync Security",
+                title: isAr ? "أمان كامل وعزل للبيانات التشغيلية" : "Zero Finance / Sync Security",
                 desc: isAr 
-                  ? "تركيز كامل على إدارة المرتجعات دون التعرض لأي معاملات ماليّة، اشتراكات شحن، أو تلاعب ببيانات الحساب البنكي."
+                  ? "تركيز كامل على تنظيم طلبات ما بعد البيع دون تعقيد أو تشتيت خارج مسار المعالجة."
                   : "Clean procedural management with zero contact with raw payment card data, subscription metrics, or bank transfers."
               }
             ].map((f, i) => (
@@ -719,6 +781,121 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
         </div>
       </section>
 
+      {/* G1. SOLUTIONS / STORE SIZES SECTION */}
+      <section className="py-20 bg-white px-6">
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="text-center space-y-2">
+            <span className="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">
+              {isAr ? 'حلول مصممة خصيصاً لك' : 'Tailored scale solutions'}
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-stone-900 font-sans">
+              {isAr ? 'حلول دقة مصممة تناسب احتياجك مهما كان نشاطك' : 'Precise solutions tailored to fit your business, whatever its scale'}
+            </h2>
+            <p className="text-stone-500 text-xs md:text-sm max-w-xl mx-auto">
+              {isAr 
+                ? 'سواء كنت متجراً ناشئاً، متوسطاً، أو علامة تجارية ضخمة، نوفر لك الأدوات المناسبة لتبسيط دورة حياة طلبات العملاء بكفاءة تامة.'
+                : 'Whether you are a startup, a growing medium business, or a massive brand, Hal\'ha equips you to simplify your post-sales returns cleanly.'
+              }
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8">
+            {[
+              {
+                title: isAr ? "المتاجر الكبيرة" : "Large Stores",
+                desc: isAr 
+                  ? "حلول متقدمة وأنظمة مخصصة للعلامات التجارية الكبرى لتبسيط وإدارة تدفقات العمل المعقدة، مع أتمتة دقيقة للمهام لضمان الكفاءة والنمو المستمر."
+                  : "Advanced systems for large brands to streamline complex return workflows, with smart automated task routing to guarantee high efficiency and scale.",
+                icon: <Building2 className="w-6 h-6 text-blue-600" />,
+                bgNormal: "bg-blue-50/40 border-blue-200/50",
+                bgHover: "bg-blue-100/70 border-blue-300",
+                textColor: "text-blue-900",
+                watermark: <Building2 className="absolute bottom-4 right-4 w-32 h-32 text-blue-500/5 pointer-events-none" />,
+                baseRadius: "120px 40px 120px 40px",
+                hoverRadius: "45% 55% 45% 55% / 55% 45% 55% 45%"
+              },
+              {
+                title: isAr ? "المتاجر المتوسطة" : "Medium Stores",
+                desc: isAr 
+                  ? "إدارة ذكية ومتكاملة للطلبات والمخزون مع تنظيم أدوار فريق العمل وتوزيع الصلاحيات بكفاءة تضمن التوسع السلس وتجاوب أسرع مع عملائك."
+                  : "Complete order, inventory, and staff management to facilitate scaling your operations. Enhance speed, optimize workflows, and maintain beautiful, rapid, and outstanding customer service.",
+                icon: <Store className="w-6 h-6 text-amber-600" />,
+                bgNormal: "bg-amber-50/30 border-amber-200/50",
+                bgHover: "bg-amber-100/60 border-amber-300",
+                textColor: "text-amber-900",
+                watermark: <Store className="absolute bottom-4 right-4 w-32 h-32 text-amber-500/5 pointer-events-none" />,
+                baseRadius: "40px 120px 40px 120px",
+                hoverRadius: "55% 45% 55% 45% / 45% 55% 45% 55%"
+              },
+              {
+                title: isAr ? "المتاجر الصغيرة" : "Small Stores",
+                desc: isAr 
+                  ? "نظم أولى طلباتك وتخلص من الفوضى التشغيلية عبر واجهة مبسطة مصممة خصيصاً لمساعدتك على فحص ومرتجعات عملائك بأقل تكلفة وجهد."
+                  : "Systematize return flows and minimize processing friction. Track every client interaction easily, streamline stock replenishment, and ensure an elegant customer experience without setup overhead.",
+                icon: <Home className="w-6 h-6 text-emerald-600" />,
+                bgNormal: "bg-emerald-50/40 border-emerald-200/50",
+                bgHover: "bg-emerald-100/60 border-emerald-300",
+                textColor: "text-emerald-900",
+                watermark: <Home className="absolute bottom-4 right-4 w-32 h-32 text-emerald-500/5 pointer-events-none" />,
+                baseRadius: "120px 40px 120px 40px",
+                hoverRadius: "45% 55% 45% 55% / 55% 45% 55% 45%"
+              }
+            ].map((item, idx) => {
+              const isHovered = hoveredSize === idx;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 50, scale: 0.9, borderRadius: item.baseRadius }}
+                  whileInView={{ 
+                    opacity: 1, 
+                    y: 0,
+                    scale: isHovered ? 1.03 : 1,
+                    borderRadius: isHovered ? item.hoverRadius : item.baseRadius
+                  }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  onMouseEnter={() => setHoveredSize(idx)}
+                  onMouseLeave={() => setHoveredSize(null)}
+                  transition={{ type: "spring", stiffness: 140, damping: 13, delay: idx * 0.15 }}
+                  className={`p-8 border smooth-shadow relative overflow-visible flex flex-col items-center justify-center min-h-[320px] transition-colors duration-300 ${isHovered ? item.bgHover : item.bgNormal}`}
+                >
+                  {/* Overflow-hidden wrapper to contain background watermark perfectly without cutting off floating top badge */}
+                  <div className="absolute inset-0 overflow-hidden rounded-[inherit] pointer-events-none">
+                    {/* Watermark Logo in background */}
+                    <motion.div
+                      animate={{ 
+                        scale: isHovered ? 1.15 : 1,
+                        opacity: isHovered ? 0.08 : 0.04
+                      }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {item.watermark}
+                    </motion.div>
+                  </div>
+
+                  {/* Top Floating Badge */}
+                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-14 h-14 bg-white rounded-full border border-stone-200/80 shadow-md flex items-center justify-center z-20">
+                    <motion.div
+                      animate={{ 
+                        rotate: isHovered ? [0, 10, -10, 0] : 0,
+                        scale: isHovered ? 1.1 : 1 
+                      }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      {item.icon}
+                    </motion.div>
+                  </div>
+
+                  <div className="space-y-3 relative z-10 text-center mt-4">
+                    <h3 className="text-base font-extrabold text-stone-900">{item.title}</h3>
+                    <p className="text-stone-500 text-[11px] leading-relaxed max-w-xs mx-auto">{item.desc}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* G. ROLE-BASED SECTION */}
       <section className="py-20 bg-stone-50 border-y border-stone-200/50 px-6">
         <div className="max-w-7xl mx-auto space-y-12">
@@ -740,7 +917,7 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
               {
                 title: isAr ? "١. خدمة دعم العملاء" : "1. Customer Support",
                 role: isAr ? "دعم العملاء (Customer Support)" : "Support Agent",
-                icon: "💬",
+                icon: <MessageSquare className="w-5 h-5 text-teal-600" />,
                 points: isAr ? [
                   "فرز الطلبات المجلوبة من بوابة العميل",
                   "مخاطبة العميل واستقبال المرفقات الإضافية",
@@ -750,12 +927,16 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                   "Chat with the customer and query additional details",
                   "Grant initial approvals, issue rejections, or escalate"
                 ],
-                bg: "border-teal-200 hover:border-teal-500 bg-white"
+                bgNormal: "bg-teal-50/10 border-teal-200/40",
+                bgHover: "bg-teal-50/60 border-teal-300",
+                watermark: <MessageSquare className="absolute bottom-4 right-4 w-32 h-32 text-teal-500/5 pointer-events-none" />,
+                baseRadius: "120px 40px 120px 40px",
+                hoverRadius: "45% 55% 45% 55% / 55% 45% 55% 45%"
               },
               {
                 title: isAr ? "٢. مالك المتجر الإلكتروني" : "2. Store Owner",
                 role: isAr ? "المالك (Store Owner)" : "Owner",
-                icon: "👑",
+                icon: <Crown className="w-5 h-5 text-amber-600" />,
                 points: isAr ? [
                   "مراجعة الطلبات المصعّدة والمثيرة للشكوك",
                   "إصدار قرار نهائي ملزم بالقبول أو الإغلاق",
@@ -765,12 +946,16 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                   "Formulate definitive decisions of approve or reject",
                   "Evaluate metrics and staff performance stats"
                 ],
-                bg: "border-amber-200 hover:border-amber-500 bg-white"
+                bgNormal: "bg-amber-50/10 border-amber-200/40",
+                bgHover: "bg-amber-50/60 border-amber-300",
+                watermark: <ShieldCheck className="absolute bottom-4 right-4 w-32 h-32 text-amber-500/5 pointer-events-none" />,
+                baseRadius: "40px 120px 40px 120px",
+                hoverRadius: "55% 45% 55% 45% / 45% 55% 45% 55%"
               },
               {
                 title: isAr ? "٣. فني المستودع والفحص" : "3. Warehouse Inspector",
                 role: isAr ? "المستودع (Warehouse Specialist)" : "Warehouse Inspector",
-                icon: "📦",
+                icon: <Warehouse className="w-5 h-5 text-stone-600" />,
                 points: isAr ? [
                   "فحص سلامة المنتج وتحديد العيوب",
                   "إرفاق صور الإثبات فوراً ومراجعة القطعة",
@@ -780,36 +965,71 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                   "Attach visual check photos of defects",
                   "Confirm warehouse pickup or return to support"
                 ],
-                bg: "border-stone-200 hover:border-stone-500 bg-white"
+                bgNormal: "bg-stone-50/20 border-stone-200/40",
+                bgHover: "bg-stone-100/60 border-stone-300",
+                watermark: <Warehouse className="absolute bottom-4 right-4 w-32 h-32 text-stone-500/5 pointer-events-none" />,
+                baseRadius: "120px 40px 120px 40px",
+                hoverRadius: "45% 55% 45% 55% / 55% 45% 55% 45%"
               }
-            ].map((rc, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                className={`p-6 border rounded-2xl smooth-shadow transition-all duration-300 flex flex-col justify-between ${rc.bg}`}
-              >
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <span className="text-2xl">{rc.icon}</span>
-                    <span className="text-[9px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded font-mono">{rc.role}</span>
+            ].map((rc, idx) => {
+              const isHovered = hoveredRole === idx;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 50, scale: 0.9, borderRadius: rc.baseRadius }}
+                  whileInView={{ 
+                    opacity: 1, 
+                    y: 0,
+                    scale: isHovered ? 1.03 : 1,
+                    borderRadius: isHovered ? rc.hoverRadius : rc.baseRadius
+                  }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  onMouseEnter={() => setHoveredRole(idx)}
+                  onMouseLeave={() => setHoveredRole(null)}
+                  transition={{ type: "spring", stiffness: 140, damping: 13, delay: idx * 0.15 }}
+                  className={`p-8 border smooth-shadow relative overflow-visible flex flex-col justify-between min-h-[300px] transition-colors duration-300 ${isHovered ? rc.bgHover : rc.bgNormal}`}
+                >
+                  {/* Overflow-hidden wrapper to contain background watermark perfectly */}
+                  <div className="absolute inset-0 overflow-hidden rounded-[inherit] pointer-events-none">
+                    {/* Watermark Logo in background */}
+                    <motion.div
+                      animate={{ 
+                        scale: isHovered ? 1.15 : 1,
+                        opacity: isHovered ? 0.08 : 0.04
+                      }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {rc.watermark}
+                    </motion.div>
                   </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-stone-900">{rc.title}</h3>
-                    <ul className="mt-3 space-y-2">
-                      {rc.points.map((p, i) => (
-                        <li key={i} className="text-[10px] text-stone-500 flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                          <span>{p}</span>
-                        </li>
-                      ))}
-                    </ul>
+
+                  <div className="space-y-4 relative z-10 text-right w-full">
+                    <div className="flex justify-between items-center">
+                      <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-stone-200/40 flex items-center justify-center">
+                        <motion.div
+                          animate={{ rotate: isHovered ? [0, 10, -10, 0] : 0, scale: isHovered ? 1.1 : 1 }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          {rc.icon}
+                        </motion.div>
+                      </div>
+                      <span className="text-[9px] font-bold text-stone-500 bg-stone-200/50 px-2.5 py-1 rounded font-mono">{rc.role}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-stone-900">{rc.title}</h3>
+                      <ul className="mt-3 space-y-2">
+                        {rc.points.map((p, i) => (
+                          <li key={i} className="text-[11px] text-stone-600 flex items-center gap-1.5 justify-start dir-rtl text-right">
+                            <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                            <span>{p}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -906,7 +1126,7 @@ export default function LandingPage({ onStartDemo, lang }: LandingPageProps) {
                           <span className="w-2 h-2 rounded-full bg-emerald-500" />
                         </motion.div>
                         <div className="p-1.5 border border-stone-100 rounded-lg text-[9px] text-stone-500">
-                          💳 {isAr ? 'إرجاع واسترداد القيمة للبطاقة' : 'Return and Refund to Card'}
+                          💳 {isAr ? 'طلب استرجاع المنتج' : 'Return Request'}
                         </div>
                         <div className="p-1.5 border border-stone-100 rounded-lg text-[9px] text-stone-500">
                           ⚠️ {isAr ? 'تقديم شكوى أو تأخر توصيل' : 'File Delivery Complaint'}
